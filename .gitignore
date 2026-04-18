@@ -1,6 +1,6 @@
-count_conn_and_drop_bpfel.go 
-count_conn_and_drop_bpfeb.go 
-count_conn_and_drop_bpfel.o 
-count_conn_and_drop_bpfeb.o
-pod_blocker
-attacker/auth-attacker
+internal/ebpfgen/flow_bpfel.go
+internal/ebpfgen/flow_bpfeb.go
+internal/ebpfgen/flow_bpfel.o
+internal/ebpfgen/flow_bpfeb.o
+
+flowmancer-agent

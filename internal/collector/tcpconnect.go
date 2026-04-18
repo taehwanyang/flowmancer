@@ -10,8 +10,8 @@ import (
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 
-	"flowmancer/internal/ebpfgen"
-	"flowmancer/internal/model"
+	"github.com/taehwanyang/flowmancer/internal/ebpfgen"
+	"github.com/taehwanyang/flowmancer/internal/model"
 )
 
 type TCPConnectCollector struct {
@@ -46,6 +46,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("attach tcp_v4_connect: %w", err)
 	}
+	log.Println("attached kprobe: tcp_v4_connect")
 	c.links = append(c.links, kp4)
 
 	kp6, err := link.Kprobe("tcp_v6_connect", c.objects.HandleTcpV6Connect, nil)
@@ -53,6 +54,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("attach tcp_v6_connect: %w", err)
 	}
+	log.Println("attached kprobe: tcp_v6_connect")
 	c.links = append(c.links, kp6)
 
 	rd, err := ringbuf.NewReader(c.objects.Events)
@@ -60,6 +62,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("open ringbuf: %w", err)
 	}
+	log.Println("opened ringbuf reader")
 	c.ring = rd
 
 	go func() {

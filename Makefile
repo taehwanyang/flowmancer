@@ -4,10 +4,10 @@ BPF_GEN_PACKAGE := ./internal/ebpfgen
 
 # bpf2go generated files (prefix: flow)
 GENERATED_FILES := \
-	flow_bpfel.go \
-	flow_bpfeb.go \
-	flow_bpfel.o \
-	flow_bpfeb.o
+	$(BPF_GEN_PACKAGE)/flow_bpfel.go \
+	$(BPF_GEN_PACKAGE)/flow_bpfeb.go \
+	$(BPF_GEN_PACKAGE)/flow_bpfel.o \
+	$(BPF_GEN_PACKAGE)/flow_bpfeb.o
 
 .PHONY: all generate build run clean help
 

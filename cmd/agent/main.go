@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"flowmancer/internal/collector"
+	"github.com/taehwanyang/flowmancer/internal/collector"
 )
 
 func main() {
