@@ -99,5 +99,5 @@ int BPF_KPROBE(handle_tcp_v4_connect, struct sock *sk, struct sockaddr *uaddr, i
 SEC("kprobe/tcp_v6_connect")
 int BPF_KPROBE(handle_tcp_v6_connect, struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
-    return submit_ipv6(sk, uadr);
+    return submit_ipv6(sk, uaddr);
 }
