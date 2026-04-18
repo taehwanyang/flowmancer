@@ -1,22 +1,40 @@
-BINARY_NAME = pod_blocker
-MY_NODE_NAME ?= $(shell kubectl get node -o jsonpath='{.items[0].metadata.name}')
-GENERATED_FILES = count_conn_and_drop_bpfel.go count_conn_and_drop_bpfeb.go count_conn_and_drop_bpfel.o count_conn_and_drop_bpfeb.o
+BINARY_NAME := flowmancer-agent
+GO_PACKAGE := ./cmd/agent
+BPF_GEN_PACKAGE := ./internal/ebpfgen
 
-.PHONY: generate build clean run help
+# bpf2go generated files (prefix: flow)
+GENERATED_FILES := \
+	flow_bpfel.go \
+	flow_bpfeb.go \
+	flow_bpfel.o \
+	flow_bpfeb.o
 
-generate: ## Generate Go code from eBPF C source
-	go generate ./...
+.PHONY: all generate build run clean help
 
-build: generate ##  Generate eBPF code and build Go binary
-	go build -buildvcs=false -o $(BINARY_NAME) .
+all: build
 
-run: build ##  Run the autoscaler program
-	MY_NODE_NAME=$(MY_NODE_NAME) ./$(BINARY_NAME)
+## Generate Go bindings from eBPF C code
+generate:
+	@echo ">> Generating eBPF code..."
+	go generate $(BPF_GEN_PACKAGE)
 
-clean: ## Remove generated files and binary
+## Build the Flowmancer agent
+build: generate
+	@echo ">> Building $(BINARY_NAME)..."
+	go build -buildvcs=false -o $(BINARY_NAME) $(GO_PACKAGE)
+
+## Run the agent (requires root)
+run: build
+	@echo ">> Running $(BINARY_NAME)..."
+	sudo ./$(BINARY_NAME)
+
+## Clean build artifacts
+clean:
+	@echo ">> Cleaning..."
 	rm -f $(BINARY_NAME)
 	rm -f $(GENERATED_FILES)
 
-help: ## Show this help message
+## Show help
+help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
