@@ -20,9 +20,10 @@ static __always_inline __u32 get_netns_ino(struct sock *sk)
     return BPF_CORE_READ(net, ns.inum);
 }
 
-static __always_inline int submit_ipv4(struct sock *sk)
+static __always_inline int submit_ipv4(struct sock *sk, struct sockaddr *uaddr)
 {
     struct tcp_connect_event *e;
+    struct sockaddr_in sa = {};
 
     e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
     if (!e)
@@ -42,23 +43,22 @@ static __always_inline int submit_ipv4(struct sock *sk)
 
     bpf_get_current_comm(&e->comm, sizeof(e->comm));
 
-    __u32 saddr = BPF_CORE_READ(sk, __sk_common.skc_rcv_saddr);
-    __u32 daddr = BPF_CORE_READ(sk, __sk_common.skc_daddr);
-    __u16 sport = BPF_CORE_READ(sk, __sk_common.skc_num);
-    __be16 dport = BPF_CORE_READ(sk, __sk_common.skc_dport);
+    if (uaddr) {
+        bpf_probe_read_kernel(&sa, sizeof(sa), uaddr);
+        __builtin_memcpy(&e->daddr_v6[0], &sa.sin_addr.s_addr, sizeof(sa.sin_addr.s_addr));
+        e->dport = bpf_ntohs(sa.sin_port);
+    }
 
-    __builtin_memcpy(&e->saddr_v6[0], &saddr, sizeof(saddr));
-    __builtin_memcpy(&e->daddr_v6[0], &daddr, sizeof(daddr));
-    e->sport = sport;
-    e->dport = bpf_ntohs(dport);
+    e->sport = BPF_CORE_READ(sk, __sk_common.skc_num);
 
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
-static __always_inline int submit_ipv6(struct sock *sk)
+static __always_inline int submit_ipv6(struct sock *sk, struct sockaddr *uaddr)
 {
     struct tcp_connect_event *e;
+    struct sockaddr_in6 sa6 = {};
 
     e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
     if (!e)
@@ -78,28 +78,26 @@ static __always_inline int submit_ipv6(struct sock *sk)
 
     bpf_get_current_comm(&e->comm, sizeof(e->comm));
 
-    struct in6_addr saddr = BPF_CORE_READ(sk, __sk_common.skc_v6_rcv_saddr);
-    struct in6_addr daddr = BPF_CORE_READ(sk, __sk_common.skc_v6_daddr);
-    __u16 sport = BPF_CORE_READ(sk, __sk_common.skc_num);
-    __be16 dport = BPF_CORE_READ(sk, __sk_common.skc_dport);
+    if (uaddr) {
+        bpf_probe_read_kernel(&sa6, sizeof(sa6), uaddr);
+        __builtin_memcpy(&e->daddr_v6[0], &sa6.sin6_addr.in6_u.u6_addr8, 16);
+        e->dport = bpf_ntohs(sa6.sin6_port);
+    }
 
-    __builtin_memcpy(&e->saddr_v6[0], &saddr.in6_u.u6_addr8, 16);
-    __builtin_memcpy(&e->daddr_v6[0], &daddr.in6_u.u6_addr8, 16);
-    e->sport = sport;
-    e->dport = bpf_ntohs(dport);
+    e->sport = BPF_CORE_READ(sk, __sk_common.skc_num);
 
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
 SEC("kprobe/tcp_v4_connect")
-int BPF_KPROBE(handle_tcp_v4_connect, struct sock *sk)
+int BPF_KPROBE(handle_tcp_v4_connect, struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
-    return submit_ipv4(sk);
+    return submit_ipv4(sk, uaddr);
 }
 
 SEC("kprobe/tcp_v6_connect")
-int BPF_KPROBE(handle_tcp_v6_connect, struct sock *sk)
+int BPF_KPROBE(handle_tcp_v6_connect, struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
-    return submit_ipv6(sk);
+    return submit_ipv6(sk, uadr);
 }
