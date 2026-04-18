@@ -5,7 +5,7 @@
 #define FLOWMANCER_AF_INET 2
 #define FLOWMANCER_AF_INET6 10
 
-struct tcp_connect_event {
+struct connect_entry_state {
     __u64 ts_ns;
     __u32 pid;
     __u32 tgid;
@@ -13,7 +13,26 @@ struct tcp_connect_event {
     __u32 netns_ino;
 
     __u16 family;
-    __u16 dport;      // host order로 보내도 되지만 여기서는 network->host 변환 후 넣음
+    __u16 dport;
+    __u16 _pad16;
+    __u32 _pad32;
+
+    char comm[FLOWMANCER_COMM_LEN];
+    __u8 daddr_v6[16];
+};
+
+struct tcp_connect_event {
+    __u64 ts_ns;
+    __u64 end_ts_ns;
+
+    __u32 pid;
+    __u32 tgid;
+    __u32 uid;
+    __u32 netns_ino;
+
+    __s32 ret;
+    __u16 family;
+    __u16 dport;
     __u16 sport;
     __u16 _pad;
 
