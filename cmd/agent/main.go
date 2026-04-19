@@ -30,24 +30,31 @@ func main() {
 		log.Fatalf("start resolver: %v", err)
 	}
 
-	agg := aggregator.NewTCPBaselineAggregator()
+	agg := aggregator.NewWorkloadBaselineAggregator()
 
 	c := collector.NewTCPConnectCollector(
 		func(ev model.TCPConnectEvent) {
-			if pod, ok := resolver.ResolveNetns(ev.NetnsIno); ok {
+			var pod *k8smeta.PodMetadata
+
+			if resolved, ok := resolver.ResolveNetns(ev.NetnsIno); ok {
+				pod = &resolved
 				log.Printf(
 					"[resolved] netns=%d -> %s/%s workload=%s/%s",
 					ev.NetnsIno,
-					pod.Namespace,
-					pod.PodName,
-					pod.WorkloadKind,
-					pod.WorkloadName,
+					resolved.Namespace,
+					resolved.PodName,
+					resolved.WorkloadKind,
+					resolved.WorkloadName,
 				)
 			} else {
 				log.Printf("[resolved] netns=%d -> <unresolved>", ev.NetnsIno)
 			}
 
-			agg.Add(ev)
+			agg.Add(aggregator.ResolvedFlow{
+				Event: ev,
+				Pod:   pod,
+			})
+
 			collector.ExampleLogEvent(ev)
 		},
 		func(err error) {
@@ -77,7 +84,7 @@ func main() {
 
 	<-ctx.Done()
 
-	log.Println("final baseline candidates:")
+	log.Println("final workload baseline candidates:")
 	printBaselineCandidatesAuto(agg)
 
 	log.Println("flowmancer tcp connect collector stopped")

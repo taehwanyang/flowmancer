@@ -6,15 +6,14 @@ import (
 	"github.com/taehwanyang/flowmancer/internal/aggregator"
 )
 
-func printSnapshotTopN(agg *aggregator.TCPBaselineAggregator, n int) {
+func printSnapshotTopN(agg *aggregator.WorkloadBaselineAggregator, n int) {
 	snapshot := agg.SnapshotTopN(n)
-	log.Printf("current top %d flow aggregates: %d entries", n, len(snapshot))
+	log.Printf("current top %d workload flow aggregates: %d entries", n, len(snapshot))
 
 	for _, item := range snapshot {
 		log.Printf(
-			"[top] netns=%d comm=%s dst=%s:%d family=%d count=%d success=%d fail=%d avg_dur=%s first=%s last=%s",
-			item.Key.NetnsIno,
-			item.Key.Comm,
+			"[top] subject=%s dst=%s:%d family=%d count=%d success=%d fail=%d avg_dur=%s first=%s last=%s",
+			item.SubjectString(),
 			item.Key.DstIP,
 			item.Key.DstPort,
 			item.Key.Family,
@@ -28,15 +27,14 @@ func printSnapshotTopN(agg *aggregator.TCPBaselineAggregator, n int) {
 	}
 }
 
-func printBaselineCandidatesAuto(agg *aggregator.TCPBaselineAggregator) {
+func printBaselineCandidatesAuto(agg *aggregator.WorkloadBaselineAggregator) {
 	candidates, minCount := agg.BaselineCandidatesAuto()
-	log.Printf("baseline candidates (auto minCount=%d): %d entries", minCount, len(candidates))
+	log.Printf("workload baseline candidates (auto minCount=%d): %d entries", minCount, len(candidates))
 
 	for _, item := range candidates {
 		log.Printf(
-			"[baseline] netns=%d comm=%s dst=%s:%d family=%d count=%d success=%d fail=%d success_ratio=%.2f avg_dur=%s",
-			item.Key.NetnsIno,
-			item.Key.Comm,
+			"[baseline] subject=%s dst=%s:%d family=%d count=%d success=%d fail=%d success_ratio=%.2f avg_dur=%s",
+			item.SubjectString(),
 			item.Key.DstIP,
 			item.Key.DstPort,
 			item.Key.Family,
