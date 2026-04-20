@@ -11,9 +11,10 @@ import (
 )
 
 type ResolvedFlow struct {
-	Event  model.TCPConnectEvent
-	Pod    *k8smeta.PodMetadata
-	Domain string
+	Event      model.TCPConnectEvent
+	Pod        *k8smeta.PodMetadata
+	Domain     string
+	DstK8sName string
 }
 
 type WorkloadFlowKey struct {
@@ -24,10 +25,9 @@ type WorkloadFlowKey struct {
 	NetnsIno uint32
 	Comm     string
 
-	Family    uint16
-	DstDomain string
-	DstIP     string
-	DstPort   uint16
+	Family  uint16
+	Dst     string
+	DstPort uint16
 }
 
 type WorkloadFlowAggregate struct {
@@ -65,10 +65,7 @@ func (f WorkloadFlowAggregate) SubjectString() string {
 }
 
 func (f WorkloadFlowAggregate) DestinationString() string {
-	if f.Key.DstDomain != "" {
-		return f.Key.DstDomain
-	}
-	return f.Key.DstIP
+	return f.Key.Dst
 }
 
 type WorkloadBaselineAggregator struct {
@@ -92,7 +89,7 @@ func (a *WorkloadBaselineAggregator) Add(in ResolvedFlow) {
 	if key.DstPort == 0 {
 		return
 	}
-	if key.DstDomain == "" && key.DstIP == "" {
+	if key.Dst == "" {
 		return
 	}
 
@@ -137,10 +134,13 @@ func buildWorkloadKey(in ResolvedFlow) WorkloadFlowKey {
 		DstPort: ev.Dport,
 	}
 
-	if in.Domain != "" {
-		key.DstDomain = normalizeDomain(in.Domain)
-	} else {
-		key.DstIP = ipString(ev.DstIP())
+	switch {
+	case in.Domain != "":
+		key.Dst = normalizeDomain(in.Domain)
+	case in.DstK8sName != "":
+		key.Dst = in.DstK8sName
+	default:
+		key.Dst = ipString(ev.DstIP())
 	}
 
 	if in.Pod != nil {
@@ -232,13 +232,9 @@ func sortWorkloadAggregates(out []WorkloadFlowAggregate) {
 		if a.Key.Comm != b.Key.Comm {
 			return a.Key.Comm < b.Key.Comm
 		}
-
-		adst := a.DestinationString()
-		bdst := b.DestinationString()
-		if adst != bdst {
-			return adst < bdst
+		if a.Key.Dst != b.Key.Dst {
+			return a.Key.Dst < b.Key.Dst
 		}
-
 		return a.Key.DstPort < b.Key.DstPort
 	})
 }

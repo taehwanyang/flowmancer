@@ -32,10 +32,33 @@ func main() {
 		log.Fatalf("new kubernetes client: %v", err)
 	}
 
+	// source resolver (netns -> pod)
 	resolver := k8smeta.NewResolver(clientset, nodeName)
 	if err := resolver.Start(ctx); err != nil {
 		log.Fatalf("start resolver: %v", err)
 	}
+
+	// destination resolver (dst IP -> Service/Pod/Workload)
+	dstResolver := k8smeta.NewDstResolver(clientset)
+	if err := dstResolver.Refresh(ctx); err != nil {
+		log.Printf("[warn] initial dst resolver refresh failed: %v", err)
+	}
+
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := dstResolver.Refresh(ctx); err != nil {
+					log.Printf("refresh dst resolver failed: %v", err)
+				}
+			}
+		}
+	}()
 
 	dnsCache := dns.NewCache()
 
@@ -45,6 +68,10 @@ func main() {
 	}
 
 	dnsCollector := dns.NewCollector(func(resp *dns.ParsedResponse) {
+		if resp == nil || resp.Domain == "" || len(resp.IPs) == 0 {
+			return
+		}
+
 		dnsCache.Add(resp.Domain, resp.IPs, resp.TTL)
 		log.Printf("[dns] domain=%s ips=%v ttl=%d", resp.Domain, resp.IPs, resp.TTL)
 	})
@@ -73,18 +100,32 @@ func main() {
 				log.Printf("[resolved] netns=%d -> <unresolved>", ev.NetnsIno)
 			}
 
+			dstIP := ev.DstIP()
+			if v4 := dstIP.To4(); v4 != nil {
+				dstIP = v4
+			}
+
 			var domain string
-			if d, ok := dnsCache.Lookup(ev.DstIP()); ok {
+			if d, ok := dnsCache.Lookup(dstIP); ok {
 				domain = d
-				log.Printf("[dns lookup] hit dst=%s domain=%s", ev.DstIP().String(), domain)
+				log.Printf("[dns lookup] hit dst=%s domain=%s", dstIP.String(), domain)
 			} else {
-				log.Printf("[dns lookup] miss dst=%s", ev.DstIP().String())
+				log.Printf("[dns lookup] miss dst=%s", dstIP.String())
+			}
+
+			var dstK8sName string
+			if resolvedDst, ok := dstResolver.ResolveDstIP(dstIP); ok {
+				dstK8sName = resolvedDst.Name
+				log.Printf("[k8s dst] hit dst=%s name=%s", dstIP.String(), dstK8sName)
+			} else {
+				log.Printf("[k8s dst] miss dst=%s", dstIP.String())
 			}
 
 			agg.Add(aggregator.ResolvedFlow{
-				Event:  ev,
-				Pod:    pod,
-				Domain: domain,
+				Event:      ev,
+				Pod:        pod,
+				Domain:     domain,
+				DstK8sName: dstK8sName,
 			})
 
 			collector.ExampleLogEvent(ev)
@@ -97,6 +138,15 @@ func main() {
 	if err := tcpCollector.Start(ctx); err != nil {
 		log.Fatalf("start tcp collector: %v", err)
 	}
+
+	defer func() {
+		if err := dnsCollector.Close(); err != nil {
+			log.Printf("close dns collector: %v", err)
+		}
+		if err := tcpCollector.Close(); err != nil {
+			log.Printf("close tcp collector: %v", err)
+		}
+	}()
 
 	log.Println("flowmancer tcp connect collector started")
 
