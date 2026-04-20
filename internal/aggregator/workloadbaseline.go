@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,8 +11,9 @@ import (
 )
 
 type ResolvedFlow struct {
-	Event model.TCPConnectEvent
-	Pod   *k8smeta.PodMetadata
+	Event  model.TCPConnectEvent
+	Pod    *k8smeta.PodMetadata
+	Domain string
 }
 
 type WorkloadFlowKey struct {
@@ -19,13 +21,13 @@ type WorkloadFlowKey struct {
 	WorkloadKind string
 	WorkloadName string
 
-	// unresolved fallback
 	NetnsIno uint32
 	Comm     string
 
-	Family  uint16
-	DstIP   string
-	DstPort uint16
+	Family    uint16
+	DstDomain string
+	DstIP     string
+	DstPort   uint16
 }
 
 type WorkloadFlowAggregate struct {
@@ -62,6 +64,13 @@ func (f WorkloadFlowAggregate) SubjectString() string {
 	return "netns=" + itoa32(f.Key.NetnsIno) + " comm=" + f.Key.Comm
 }
 
+func (f WorkloadFlowAggregate) DestinationString() string {
+	if f.Key.DstDomain != "" {
+		return f.Key.DstDomain
+	}
+	return f.Key.DstIP
+}
+
 type WorkloadBaselineAggregator struct {
 	mu    sync.RWMutex
 	flows map[WorkloadFlowKey]*WorkloadFlowAggregate
@@ -80,7 +89,10 @@ func (a *WorkloadBaselineAggregator) Add(in ResolvedFlow) {
 	}
 
 	key := buildWorkloadKey(in)
-	if key.DstIP == "" || key.DstPort == 0 {
+	if key.DstPort == 0 {
+		return
+	}
+	if key.DstDomain == "" && key.DstIP == "" {
 		return
 	}
 
@@ -119,10 +131,16 @@ func (a *WorkloadBaselineAggregator) Add(in ResolvedFlow) {
 
 func buildWorkloadKey(in ResolvedFlow) WorkloadFlowKey {
 	ev := in.Event
+
 	key := WorkloadFlowKey{
 		Family:  ev.Family,
-		DstIP:   ipString(ev.DstIP()),
 		DstPort: ev.Dport,
+	}
+
+	if in.Domain != "" {
+		key.DstDomain = normalizeDomain(in.Domain)
+	} else {
+		key.DstIP = ipString(ev.DstIP())
 	}
 
 	if in.Pod != nil {
@@ -135,6 +153,15 @@ func buildWorkloadKey(in ResolvedFlow) WorkloadFlowKey {
 	}
 
 	return key
+}
+
+func normalizeDomain(d string) string {
+	d = strings.TrimSpace(strings.ToLower(d))
+	d = strings.TrimSuffix(d, ".")
+	if strings.HasPrefix(d, "www.") {
+		return d[4:]
+	}
+	return d
 }
 
 func (a *WorkloadBaselineAggregator) Snapshot() []WorkloadFlowAggregate {
@@ -205,15 +232,18 @@ func sortWorkloadAggregates(out []WorkloadFlowAggregate) {
 		if a.Key.Comm != b.Key.Comm {
 			return a.Key.Comm < b.Key.Comm
 		}
-		if a.Key.DstIP != b.Key.DstIP {
-			return a.Key.DstIP < b.Key.DstIP
+
+		adst := a.DestinationString()
+		bdst := b.DestinationString()
+		if adst != bdst {
+			return adst < bdst
 		}
+
 		return a.Key.DstPort < b.Key.DstPort
 	})
 }
 
 func itoa32(v uint32) string {
-	// fmt.Sprintf 안 쓰고 가볍게
 	if v == 0 {
 		return "0"
 	}

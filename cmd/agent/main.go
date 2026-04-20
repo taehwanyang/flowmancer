@@ -10,8 +10,10 @@ import (
 
 	"github.com/taehwanyang/flowmancer/internal/aggregator"
 	"github.com/taehwanyang/flowmancer/internal/collector"
+	"github.com/taehwanyang/flowmancer/internal/dns"
 	"github.com/taehwanyang/flowmancer/internal/k8smeta"
 	"github.com/taehwanyang/flowmancer/internal/model"
+	"github.com/taehwanyang/flowmancer/internal/netutil"
 )
 
 func main() {
@@ -19,6 +21,11 @@ func main() {
 	defer stop()
 
 	nodeName := os.Getenv("MY_NODE_NAME")
+	if nodeName == "" {
+		log.Println("[warn] MY_NODE_NAME not set, resolving all pods (dev mode)")
+	} else {
+		log.Printf("[info] running on node=%s", nodeName)
+	}
 
 	clientset, err := k8smeta.NewKubernetesClient()
 	if err != nil {
@@ -30,9 +37,25 @@ func main() {
 		log.Fatalf("start resolver: %v", err)
 	}
 
+	dnsCache := dns.NewCache()
+
+	iface, err := netutil.DetectBridgeInterface()
+	if err != nil {
+		log.Fatalf("find bridge interface: %v", err)
+	}
+
+	dnsCollector := dns.NewCollector(func(resp *dns.ParsedResponse) {
+		dnsCache.Add(resp.Domain, resp.IPs, resp.TTL)
+		log.Printf("[dns] domain=%s ips=%v ttl=%d", resp.Domain, resp.IPs, resp.TTL)
+	})
+
+	if err := dnsCollector.Start(ctx, iface); err != nil {
+		log.Fatalf("start dns collector: %v", err)
+	}
+
 	agg := aggregator.NewWorkloadBaselineAggregator()
 
-	c := collector.NewTCPConnectCollector(
+	tcpCollector := collector.NewTCPConnectCollector(
 		func(ev model.TCPConnectEvent) {
 			var pod *k8smeta.PodMetadata
 
@@ -50,9 +73,18 @@ func main() {
 				log.Printf("[resolved] netns=%d -> <unresolved>", ev.NetnsIno)
 			}
 
+			var domain string
+			if d, ok := dnsCache.Lookup(ev.DstIP()); ok {
+				domain = d
+				log.Printf("[dns lookup] hit dst=%s domain=%s", ev.DstIP().String(), domain)
+			} else {
+				log.Printf("[dns lookup] miss dst=%s", ev.DstIP().String())
+			}
+
 			agg.Add(aggregator.ResolvedFlow{
-				Event: ev,
-				Pod:   pod,
+				Event:  ev,
+				Pod:    pod,
+				Domain: domain,
 			})
 
 			collector.ExampleLogEvent(ev)
@@ -62,8 +94,8 @@ func main() {
 		},
 	)
 
-	if err := c.Start(ctx); err != nil {
-		log.Fatalf("start collector: %v", err)
+	if err := tcpCollector.Start(ctx); err != nil {
+		log.Fatalf("start tcp collector: %v", err)
 	}
 
 	log.Println("flowmancer tcp connect collector started")

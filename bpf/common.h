@@ -42,4 +42,24 @@ struct tcp_connect_event {
     __u8 daddr_v6[16];
 };
 
+struct dns_event {
+    __u64 ts_ns;
+    __u32 pid;
+    __u32 tgid;
+    __u32 uid;
+    __u32 netns_ino;
+
+    __u16 family;
+    __u16 sport;
+    __u16 dport;
+    __u16 payload_len;
+
+    char comm[FLOWMANCER_COMM_LEN];
+
+    __u8 saddr_v6[16];
+    __u8 daddr_v6[16];
+
+    __u8 payload[512];
+};
+
 #endif

@@ -14,7 +14,7 @@ func printSnapshotTopN(agg *aggregator.WorkloadBaselineAggregator, n int) {
 		log.Printf(
 			"[top] subject=%s dst=%s:%d family=%d count=%d success=%d fail=%d avg_dur=%s first=%s last=%s",
 			item.SubjectString(),
-			item.Key.DstIP,
+			item.DestinationString(),
 			item.Key.DstPort,
 			item.Key.Family,
 			item.Count,
@@ -35,7 +35,7 @@ func printBaselineCandidatesAuto(agg *aggregator.WorkloadBaselineAggregator) {
 		log.Printf(
 			"[baseline] subject=%s dst=%s:%d family=%d count=%d success=%d fail=%d success_ratio=%.2f avg_dur=%s",
 			item.SubjectString(),
-			item.Key.DstIP,
+			item.DestinationString(),
 			item.Key.DstPort,
 			item.Key.Family,
 			item.Count,
