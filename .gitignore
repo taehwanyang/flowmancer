@@ -3,4 +3,9 @@ internal/ebpfgen/flow_bpfeb.go
 internal/ebpfgen/flow_bpfel.o
 internal/ebpfgen/flow_bpfeb.o
 
+internal/ebpfgen/dns_bpfeb.go
+internal/ebpfgen/dns_bpfel.go
+internal/ebpfgen/dns_bpfeb.o
+internal/ebpfgen/dns_bpfel.o
+
 flowmancer-agent
