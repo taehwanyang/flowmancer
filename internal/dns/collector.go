@@ -62,15 +62,15 @@ func (c *Collector) StartOnInterface(ctx context.Context, iface *net.Interface) 
 	}
 	c.ring = rd
 
-	l, err := attachTCIngress(c.objects.HandleDnsTc, iface.Index)
+	l, err := attachTCEgress(c.objects.HandleDnsTc, iface.Index)
 	if err != nil {
 		_ = c.ring.Close()
 		_ = c.objects.Close()
-		return fmt.Errorf("attach tc ingress on %s(%d): %w", iface.Name, iface.Index, err)
+		return fmt.Errorf("attach tc egress on %s(%d): %w", iface.Name, iface.Index, err)
 	}
 	c.link = l
 
-	log.Printf("[dns] attached tc ingress on %s (ifindex=%d)", iface.Name, iface.Index)
+	log.Printf("[dns] attached tc egress on %s (ifindex=%d)", iface.Name, iface.Index)
 
 	go func() {
 		<-ctx.Done()
@@ -81,7 +81,7 @@ func (c *Collector) StartOnInterface(ctx context.Context, iface *net.Interface) 
 	return nil
 }
 
-func attachTCIngress(prog *ebpf.Program, ifIndex int) (link.Link, error) {
+func attachTCEgress(prog *ebpf.Program, ifIndex int) (link.Link, error) {
 	if prog == nil {
 		return nil, errors.New("nil tc program")
 	}
