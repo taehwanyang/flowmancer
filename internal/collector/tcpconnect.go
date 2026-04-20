@@ -141,7 +141,7 @@ func (c *TCPConnectCollector) Close() error {
 	return first
 }
 
-func ExampleLogEvent(ev model.TCPConnectEvent) {
+func LogEvent(ev model.TCPConnectEvent) {
 	log.Printf(
 		"ts=%s dur=%s comm=%s pid=%d tgid=%d netns=%d ret=%d dst=%s:%d family=%d",
 		ev.Time().Format("15:04:05.000"),

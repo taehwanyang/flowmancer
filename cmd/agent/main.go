@@ -127,8 +127,6 @@ func main() {
 				Domain:     domain,
 				DstK8sName: dstK8sName,
 			})
-
-			collector.ExampleLogEvent(ev)
 		},
 		func(err error) {
 			log.Printf("collector error: %v", err)

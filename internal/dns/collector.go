@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,15 +18,11 @@ import (
 
 type Event struct {
 	TsNS       uint64
-	Pid        uint32
-	Tgid       uint32
-	UID        uint32
 	NetnsIno   uint32
 	Family     uint16
 	Sport      uint16
 	Dport      uint16
 	PayloadLen uint16
-	Comm       [16]byte
 	SaddrV6    [16]byte
 	DaddrV6    [16]byte
 	Payload    [512]byte
@@ -120,14 +115,6 @@ func (c *Collector) readLoop() {
 			continue
 		}
 
-		log.Printf("[dns] event family=%d sport=%d dport=%d payload_len=%d comm=%q",
-			ev.Family,
-			ev.Sport,
-			ev.Dport,
-			ev.PayloadLen,
-			bytes.TrimRight(ev.Comm[:], "\x00"),
-		)
-
 		if ev.PayloadLen == 0 || int(ev.PayloadLen) > len(ev.Payload) {
 			log.Printf("[dns] skip invalid payload_len=%d", ev.PayloadLen)
 			continue
@@ -135,11 +122,10 @@ func (c *Collector) readLoop() {
 
 		resp, err := ParseResponse(ev.Payload[:ev.PayloadLen])
 		if err != nil {
-			log.Printf("[dns] parse failed payload_len=%d sport=%d dport=%d comm=%q err=%v",
+			log.Printf("[dns] parse failed payload_len=%d sport=%d dport=%d err=%v",
 				ev.PayloadLen,
 				ev.Sport,
 				ev.Dport,
-				bytes.TrimRight(ev.Comm[:], "\x00"),
 				err,
 			)
 			continue

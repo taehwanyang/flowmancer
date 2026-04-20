@@ -11,22 +11,24 @@ func decodeEvent(b []byte) (Event, error) {
 	if len(b) < want {
 		return ev, fmt.Errorf("short sample: got=%d want=%d", len(b), want)
 	}
+
 	r := binary.LittleEndian
 
 	ev.TsNS = r.Uint64(b[0:8])
-	ev.Pid = r.Uint32(b[8:12])
-	ev.Tgid = r.Uint32(b[12:16])
-	ev.UID = r.Uint32(b[16:20])
-	ev.NetnsIno = r.Uint32(b[20:24])
-	ev.Family = r.Uint16(b[24:26])
-	ev.Sport = r.Uint16(b[26:28])
-	ev.Dport = r.Uint16(b[28:30])
-	ev.PayloadLen = r.Uint16(b[30:32])
+	ev.NetnsIno = r.Uint32(b[8:12])
 
-	copy(ev.Comm[:], b[32:48])
-	copy(ev.SaddrV6[:], b[48:64])
-	copy(ev.DaddrV6[:], b[64:80])
-	copy(ev.Payload[:], b[80:592])
+	ev.Family = r.Uint16(b[12:14])
+	ev.Sport = r.Uint16(b[14:16])
+	ev.Dport = r.Uint16(b[16:18])
+	ev.PayloadLen = r.Uint16(b[18:20])
+
+	copy(ev.SaddrV6[:], b[20:36])
+	copy(ev.DaddrV6[:], b[36:52])
+	copy(ev.Payload[:], b[52:564])
+
+	if int(ev.PayloadLen) > len(ev.Payload) {
+		return ev, fmt.Errorf("invalid payload_len: %d", ev.PayloadLen)
+	}
 
 	return ev, nil
 }
