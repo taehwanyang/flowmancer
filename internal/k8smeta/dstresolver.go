@@ -45,18 +45,8 @@ func NewDstResolver(client kubernetes.Interface) *DstResolver {
 	}
 }
 
-func normalizeIP(ip net.IP) string {
-	if ip == nil {
-		return ""
-	}
-	if v4 := ip.To4(); v4 != nil {
-		return v4.String()
-	}
-	return ip.String()
-}
-
 func (r *DstResolver) Start(ctx context.Context) error {
-	if err := r.Refresh(ctx); err != nil {
+	if err := r.refresh(ctx); err != nil {
 		return err
 	}
 
@@ -73,30 +63,11 @@ func (r *DstResolver) refreshLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := r.Refresh(ctx); err != nil {
+			if err := r.refresh(ctx); err != nil {
 				log.Printf("refresh dst resolver failed: %v", err)
 			}
 		}
 	}
-}
-
-func (r *DstResolver) Refresh(ctx context.Context) error {
-	services, err := r.loadServices(ctx)
-	if err != nil {
-		return err
-	}
-
-	pods, err := r.loadPods(ctx)
-	if err != nil {
-		return err
-	}
-
-	r.mu.Lock()
-	r.servicesByIP = services
-	r.podsByIP = pods
-	r.mu.Unlock()
-
-	return nil
 }
 
 func (r *DstResolver) ResolveDstIP(ip net.IP) (DstResolution, bool) {
@@ -137,6 +108,35 @@ func (r *DstResolver) ResolveDstIP(ip net.IP) (DstResolution, bool) {
 	}
 
 	return DstResolution{}, false
+}
+
+func normalizeIP(ip net.IP) string {
+	if ip == nil {
+		return ""
+	}
+	if v4 := ip.To4(); v4 != nil {
+		return v4.String()
+	}
+	return ip.String()
+}
+
+func (r *DstResolver) refresh(ctx context.Context) error {
+	services, err := r.loadServices(ctx)
+	if err != nil {
+		return err
+	}
+
+	pods, err := r.loadPods(ctx)
+	if err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	r.servicesByIP = services
+	r.podsByIP = pods
+	r.mu.Unlock()
+
+	return nil
 }
 
 func (r *DstResolver) loadServices(ctx context.Context) (map[string]ServiceMetadata, error) {

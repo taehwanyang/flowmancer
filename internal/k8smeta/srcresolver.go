@@ -114,6 +114,17 @@ func (r *SrcResolver) Start(ctx context.Context) error {
 	return nil
 }
 
+func (r *SrcResolver) ResolveNetns(netnsIno uint32) (PodMetadata, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	entry, ok := r.netnsToPod[netnsIno]
+	if !ok {
+		return PodMetadata{}, false
+	}
+	return entry.Pod, true
+}
+
 func (r *SrcResolver) cacheReplicaSet(rs *appsv1.ReplicaSet) {
 	key := rs.Namespace + "/" + rs.Name
 	deployName := ""
@@ -203,26 +214,4 @@ func (r *SrcResolver) resolveWorkloadLocked(pod *v1.Pod) (string, string) {
 		}
 	}
 	return "Pod", pod.Name
-}
-
-func (r *SrcResolver) ResolveNetns(netnsIno uint32) (PodMetadata, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	entry, ok := r.netnsToPod[netnsIno]
-	if !ok {
-		return PodMetadata{}, false
-	}
-	return entry.Pod, true
-}
-
-func (r *SrcResolver) SnapshotMappings() []NetnsCacheEntry {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	out := make([]NetnsCacheEntry, 0, len(r.netnsToPod))
-	for _, v := range r.netnsToPod {
-		out = append(out, v)
-	}
-	return out
 }
