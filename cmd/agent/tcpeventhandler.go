@@ -50,13 +50,15 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 	var domain string
 	if d, ok := h.dnsCache.Lookup(dstIP); ok {
 		domain = d
-		log.Printf("[Dest IP -> Domain] hit dst=%s domain=%s", dstIP.String(), domain)
 	}
 
 	var dstK8sName string
 	if resolvedDst, ok := h.dstResolver.ResolveDstIP(dstIP); ok {
 		dstK8sName = resolvedDst.Name
-		log.Printf("[Dest IP -> Dest Service or Pod] hit dst=%s name=%s", dstIP.String(), dstK8sName)
+	}
+
+	if domain != "" || dstK8sName != "" {
+		log.Printf("[Dest IP -> Domain or K8S] hit dstIP=%s dst domain=%s k8s=%s", dstIP, domain, dstK8sName)
 	}
 
 	h.agg.Add(aggregator.ResolvedFlow{
