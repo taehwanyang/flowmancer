@@ -145,7 +145,6 @@ func (r *SrcResolver) refreshLoop(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	// 시작 시 1회
 	r.refreshNetnsCache()
 
 	for {

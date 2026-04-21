@@ -35,12 +35,10 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 	if resolved, ok := h.srcResolver.ResolveNetns(ev.NetnsIno); ok {
 		pod = &resolved
 		log.Printf(
-			"[resolved] netns=%d -> %s/%s workload=%s/%s",
+			"[Network Namespace -> Pod Resolved] netns=%d -> pod=%s/%s",
 			ev.NetnsIno,
 			resolved.Namespace,
 			resolved.PodName,
-			resolved.WorkloadKind,
-			resolved.WorkloadName,
 		)
 	}
 
@@ -52,13 +50,13 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 	var domain string
 	if d, ok := h.dnsCache.Lookup(dstIP); ok {
 		domain = d
-		log.Printf("[dns lookup] hit dst=%s domain=%s", dstIP.String(), domain)
+		log.Printf("[Dest IP -> Domain] hit dst=%s domain=%s", dstIP.String(), domain)
 	}
 
 	var dstK8sName string
 	if resolvedDst, ok := h.dstResolver.ResolveDstIP(dstIP); ok {
 		dstK8sName = resolvedDst.Name
-		log.Printf("[k8s dst] hit dst=%s name=%s", dstIP.String(), dstK8sName)
+		log.Printf("[Dest IP -> Dest Service or Pod] hit dst=%s name=%s", dstIP.String(), dstK8sName)
 	}
 
 	h.agg.Add(aggregator.ResolvedFlow{

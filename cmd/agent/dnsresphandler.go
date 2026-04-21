@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/taehwanyang/flowmancer/internal/dns"
 )
 
@@ -22,5 +20,4 @@ func (h *DNSRespHandler) Handle(resp *dns.ParsedResponse) {
 	}
 
 	h.dnsCache.Add(resp.Domain, resp.IPs, resp.TTL)
-	log.Printf("[dns] domain=%s ips=%v ttl=%d", resp.Domain, resp.IPs, resp.TTL)
 }
