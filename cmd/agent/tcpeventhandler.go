@@ -10,19 +10,19 @@ import (
 )
 
 type TCPConnectEventHandler struct {
-	resolver    *k8smeta.SrcResolver
+	srcResolver *k8smeta.SrcResolver
 	dnsCache    *dns.Cache
 	dstResolver *k8smeta.DstResolver
 	agg         *aggregator.WorkloadBaselineAggregator
 }
 
 func NewTCPConnectEventHandler(
-	resolver *k8smeta.SrcResolver,
+	srcResolver *k8smeta.SrcResolver,
 	dnsCache *dns.Cache,
 	dstResolver *k8smeta.DstResolver,
 	agg *aggregator.WorkloadBaselineAggregator) *TCPConnectEventHandler {
 	return &TCPConnectEventHandler{
-		resolver:    resolver,
+		srcResolver: srcResolver,
 		dnsCache:    dnsCache,
 		dstResolver: dstResolver,
 		agg:         agg,
@@ -32,7 +32,7 @@ func NewTCPConnectEventHandler(
 func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 	var pod *k8smeta.PodMetadata
 
-	if resolved, ok := h.resolver.ResolveNetns(ev.NetnsIno); ok {
+	if resolved, ok := h.srcResolver.ResolveNetns(ev.NetnsIno); ok {
 		pod = &resolved
 		log.Printf(
 			"[resolved] netns=%d -> %s/%s workload=%s/%s",
