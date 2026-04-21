@@ -16,7 +16,7 @@ import (
 	"github.com/taehwanyang/flowmancer/internal/ebpfgen"
 )
 
-type Event struct {
+type DNSRespEvent struct {
 	TsNS       uint64
 	NetnsIno   uint32
 	Family     uint16
@@ -28,7 +28,7 @@ type Event struct {
 	Payload    [512]byte
 }
 
-type Collector struct {
+type DNSRespCollector struct {
 	objects ebpfgen.DNSObjects
 	ring    *ringbuf.Reader
 	link    link.Link
@@ -37,16 +37,16 @@ type Collector struct {
 	closeOnce sync.Once
 }
 
-func NewCollector(onResp func(*ParsedResponse)) *Collector {
-	return &Collector{onResp: onResp}
+func NewDNSRespCollector(onResp func(*ParsedResponse)) *DNSRespCollector {
+	return &DNSRespCollector{onResp: onResp}
 }
 
-func (c *Collector) Start(ctx context.Context, iface *net.Interface) error {
+func (c *DNSRespCollector) Start(ctx context.Context, iface *net.Interface) error {
 	log.Printf("[dns] selected interface: %s (ifindex=%d)", iface.Name, iface.Index)
 	return c.StartOnInterface(ctx, iface)
 }
 
-func (c *Collector) StartOnInterface(ctx context.Context, iface *net.Interface) error {
+func (c *DNSRespCollector) StartOnInterface(ctx context.Context, iface *net.Interface) error {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("remove memlock: %w", err)
 	}
@@ -98,7 +98,7 @@ func attachTCEgress(prog *ebpf.Program, ifIndex int) (link.Link, error) {
 	return l, nil
 }
 
-func (c *Collector) readLoop() {
+func (c *DNSRespCollector) readLoop() {
 	for {
 		rec, err := c.ring.Read()
 		if err != nil {
@@ -109,7 +109,7 @@ func (c *Collector) readLoop() {
 			continue
 		}
 
-		ev, err := decodeEvent(rec.RawSample)
+		ev, err := decodeDNSRespEvent(rec.RawSample)
 		if err != nil {
 			log.Printf("dns decode error: %v", err)
 			continue
@@ -139,7 +139,7 @@ func (c *Collector) readLoop() {
 	}
 }
 
-func (c *Collector) Close() error {
+func (c *DNSRespCollector) Close() error {
 	var first error
 
 	c.closeOnce.Do(func() {

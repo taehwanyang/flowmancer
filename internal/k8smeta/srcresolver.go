@@ -32,7 +32,7 @@ type NetnsCacheEntry struct {
 	UpdatedAt time.Time
 }
 
-type Resolver struct {
+type SrcResolver struct {
 	client   kubernetes.Interface
 	nodeName string
 
@@ -43,8 +43,8 @@ type Resolver struct {
 	netnsToPod map[uint32]NetnsCacheEntry
 }
 
-func NewResolver(client kubernetes.Interface, nodeName string) *Resolver {
-	return &Resolver{
+func NewSrcResolver(client kubernetes.Interface, nodeName string) *SrcResolver {
+	return &SrcResolver{
 		client:     client,
 		nodeName:   nodeName,
 		podsByUID:  make(map[string]*v1.Pod),
@@ -53,7 +53,7 @@ func NewResolver(client kubernetes.Interface, nodeName string) *Resolver {
 	}
 }
 
-func (r *Resolver) Start(ctx context.Context) error {
+func (r *SrcResolver) Start(ctx context.Context) error {
 	factory := informers.NewSharedInformerFactory(r.client, 0)
 
 	podInformer := factory.Core().V1().Pods().Informer()
@@ -114,7 +114,7 @@ func (r *Resolver) Start(ctx context.Context) error {
 	return nil
 }
 
-func (r *Resolver) cacheReplicaSet(rs *appsv1.ReplicaSet) {
+func (r *SrcResolver) cacheReplicaSet(rs *appsv1.ReplicaSet) {
 	key := rs.Namespace + "/" + rs.Name
 	deployName := ""
 
@@ -130,7 +130,7 @@ func (r *Resolver) cacheReplicaSet(rs *appsv1.ReplicaSet) {
 	r.rsToDeploy[key] = deployName
 }
 
-func (r *Resolver) refreshLoop(ctx context.Context) {
+func (r *SrcResolver) refreshLoop(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
@@ -147,7 +147,7 @@ func (r *Resolver) refreshLoop(ctx context.Context) {
 	}
 }
 
-func (r *Resolver) refreshNetnsCache() {
+func (r *SrcResolver) refreshNetnsCache() {
 	procs, err := ScanProcForPodNetns()
 	if err != nil {
 		log.Printf("refrehNetnsCache: scan proc failed: %v", err)
@@ -189,7 +189,7 @@ func (r *Resolver) refreshNetnsCache() {
 	r.mu.Unlock()
 }
 
-func (r *Resolver) resolveWorkloadLocked(pod *v1.Pod) (string, string) {
+func (r *SrcResolver) resolveWorkloadLocked(pod *v1.Pod) (string, string) {
 	for _, owner := range pod.OwnerReferences {
 		switch owner.Kind {
 		case "DaemonSet", "StatefulSet", "Job":
@@ -205,7 +205,7 @@ func (r *Resolver) resolveWorkloadLocked(pod *v1.Pod) (string, string) {
 	return "Pod", pod.Name
 }
 
-func (r *Resolver) ResolveNetns(netnsIno uint32) (PodMetadata, bool) {
+func (r *SrcResolver) ResolveNetns(netnsIno uint32) (PodMetadata, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -216,7 +216,7 @@ func (r *Resolver) ResolveNetns(netnsIno uint32) (PodMetadata, bool) {
 	return entry.Pod, true
 }
 
-func (r *Resolver) SnapshotMappings() []NetnsCacheEntry {
+func (r *SrcResolver) SnapshotMappings() []NetnsCacheEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

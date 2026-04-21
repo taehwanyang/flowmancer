@@ -2,8 +2,10 @@ package k8smeta
 
 import (
 	"context"
+	"log"
 	"net"
 	"sync"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,6 +53,31 @@ func normalizeIP(ip net.IP) string {
 		return v4.String()
 	}
 	return ip.String()
+}
+
+func (r *DstResolver) Start(ctx context.Context) error {
+	if err := r.Refresh(ctx); err != nil {
+		return err
+	}
+
+	go r.refreshLoop(ctx)
+	return nil
+}
+
+func (r *DstResolver) refreshLoop(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := r.Refresh(ctx); err != nil {
+				log.Printf("refresh dst resolver failed: %v", err)
+			}
+		}
+	}
 }
 
 func (r *DstResolver) Refresh(ctx context.Context) error {

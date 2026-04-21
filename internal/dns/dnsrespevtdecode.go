@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-func decodeEvent(b []byte) (Event, error) {
-	var ev Event
+func decodeDNSRespEvent(b []byte) (DNSRespEvent, error) {
+	var ev DNSRespEvent
 	want := binary.Size(ev)
 	if len(b) < want {
 		return ev, fmt.Errorf("short sample: got=%d want=%d", len(b), want)
