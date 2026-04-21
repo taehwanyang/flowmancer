@@ -42,8 +42,6 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 			resolved.WorkloadKind,
 			resolved.WorkloadName,
 		)
-	} else {
-		log.Printf("[resolved] netns=%d -> <unresolved>", ev.NetnsIno)
 	}
 
 	dstIP := ev.DstIP()
@@ -55,16 +53,12 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 	if d, ok := h.dnsCache.Lookup(dstIP); ok {
 		domain = d
 		log.Printf("[dns lookup] hit dst=%s domain=%s", dstIP.String(), domain)
-	} else {
-		log.Printf("[dns lookup] miss dst=%s", dstIP.String())
 	}
 
 	var dstK8sName string
 	if resolvedDst, ok := h.dstResolver.ResolveDstIP(dstIP); ok {
 		dstK8sName = resolvedDst.Name
 		log.Printf("[k8s dst] hit dst=%s name=%s", dstIP.String(), dstK8sName)
-	} else {
-		log.Printf("[k8s dst] miss dst=%s", dstIP.String())
 	}
 
 	h.agg.Add(aggregator.ResolvedFlow{

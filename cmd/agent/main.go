@@ -51,7 +51,7 @@ func main() {
 	tcpCollector := tcp.NewTCPConnectCollector(
 		tcpConnectEventHandler.Handle,
 		func(err error) {
-			log.Printf("collector error: %v", err)
+			log.Printf("tcp connect collector error: %v", err)
 		},
 	)
 
@@ -75,8 +75,6 @@ func main() {
 		}
 	}()
 
-	log.Println("flowmancer tcp connect collector started")
-
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
@@ -93,7 +91,5 @@ func main() {
 
 	<-ctx.Done()
 
-	log.Println("final workload baseline candidates:")
 	printBaselineCandidatesAuto(agg)
-	log.Println("flowmancer tcp connect collector stopped")
 }
