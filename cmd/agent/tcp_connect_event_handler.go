@@ -87,13 +87,19 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 
 	now := h.clockConv.ToTime(ev.TsNS)
 
-	if now.Before(h.buildUntil) {
-		h.builder.Add(resolvedFlow)
-	}
-
 	h.windowAgg.Add(resolvedFlow)
 
 	closed := h.windowAgg.PopExpired(now)
+
+	if now.Before(h.buildUntil) {
+		h.builder.Add(resolvedFlow)
+
+		for _, cw := range closed {
+			h.builder.AppendWindowSample(cw.Key, cw.Count, 288)
+		}
+		return
+	}
+
 	for _, cw := range closed {
 		select {
 		case h.detectCh <- cw:

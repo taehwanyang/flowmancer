@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rare-anomaly-tester
+  namespace: rareanomaly
+  labels:
+    app: rare-anomaly-tester
+spec:
+  restartPolicy: Never
+  containers:
+    - name: rare-anomaly-tester
+      image: ythwork/rare-anomaly-tester:0.0.1
+      imagePullPolicy: IfNotPresent
