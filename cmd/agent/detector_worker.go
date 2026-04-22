@@ -15,12 +15,16 @@ func runDetectorWorker(
 	snapshotHolder *aggregator.BaselineSnapshotHolder,
 	detector *anomaly.Detector,
 ) {
+	log.Printf("[Anomaly Detector Worker] Started")
+
 	for {
 		select {
 		case <-ctx.Done():
+			log.Printf("[Anomaly Detector Worker] Stopped")
 			return
 		case cw, ok := <-detectCh:
 			if !ok {
+				log.Printf("[Anomaly Detector Worker] Channel closed, Worker Closing")
 				return
 			}
 
@@ -28,6 +32,8 @@ func runDetectorWorker(
 			if snapshot == nil {
 				continue
 			}
+
+			log.Printf("[Anomaly Detector Worker] Received ClosedWindow and Snapshot, Evaluate Will Start")
 
 			results := detector.Evaluate(cw.WindowEnd, snapshot, cw)
 			for _, r := range results {

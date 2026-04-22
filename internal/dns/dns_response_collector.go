@@ -122,16 +122,16 @@ func (c *DNSRespCollector) readLoop() {
 
 		resp, err := ParseResponse(ev.Payload[:ev.PayloadLen])
 		if err != nil {
-			log.Printf("[dns] parse failed payload_len=%d sport=%d dport=%d err=%v",
-				ev.PayloadLen,
-				ev.Sport,
-				ev.Dport,
-				err,
-			)
+			// log.Printf("[dns] parse failed payload_len=%d sport=%d dport=%d err=%v",
+			// 	ev.PayloadLen,
+			// 	ev.Sport,
+			// 	ev.Dport,
+			// 	err,
+			// )
 			continue
 		}
 
-		log.Printf("[dns] domain=%s ips=%v ttl=%d", resp.Domain, resp.IPs, resp.TTL)
+		// log.Printf("[dns] domain=%s ips=%v ttl=%d", resp.Domain, resp.IPs, resp.TTL)
 
 		if c.onResp != nil {
 			c.onResp(resp)

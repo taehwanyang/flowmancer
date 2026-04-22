@@ -68,7 +68,6 @@ func main() {
 		detectCh,
 		buildUntil,
 	)
-
 	tcpCollector := tcp.NewTCPConnectCollector(
 		tcpConnectEventHandler.Handle,
 		func(err error) {
@@ -108,38 +107,14 @@ func main() {
 		case <-timer.C:
 			snapshot := builder.ExportSnapshot()
 			snapshotHolder.Replace(snapshot)
-
 			windowAgg.Reset()
-
-			log.Printf(
-				"[info] detector enabled with baseline snapshot: entries=%d generated_at=%s",
-				snapshot.Len(),
-				snapshot.GeneratedAt.Format(time.RFC3339),
-			)
 		}
 	}()
 
 	go runDetectorWorker(ctx, detectCh, snapshotHolder, detector)
 
-	go func() {
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if time.Now().Before(buildUntil) {
-					printSnapshotTopN(builder, 10)
-				}
-			}
-		}
-	}()
-
 	<-ctx.Done()
 
 	log.Printf("[info] shutting down")
-
-	printBaselineCandidatesAuto(builder)
+	printBaselineBuilder(builder)
 }
