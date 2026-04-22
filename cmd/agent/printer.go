@@ -6,8 +6,8 @@ import (
 	"github.com/taehwanyang/flowmancer/internal/aggregator"
 )
 
-func printSnapshotTopN(agg *aggregator.WorkloadBaselineAggregator, n int) {
-	snapshot := agg.SnapshotTopN(n)
+func printSnapshotTopN(builder *aggregator.BaselineBuilder, n int) {
+	snapshot := builder.SnapshotTopN(n)
 	log.Printf("current top %d workload flow aggregates: %d entries", n, len(snapshot))
 
 	for _, item := range snapshot {
@@ -27,8 +27,8 @@ func printSnapshotTopN(agg *aggregator.WorkloadBaselineAggregator, n int) {
 	}
 }
 
-func printBaselineCandidatesAuto(agg *aggregator.WorkloadBaselineAggregator) {
-	candidates, minCount := agg.BaselineCandidatesAuto()
+func printBaselineCandidatesAuto(builder *aggregator.BaselineBuilder) {
+	candidates, minCount := builder.BaselineCandidatesAuto()
 	log.Printf("workload baseline candidates (auto minCount=%d): %d entries", minCount, len(candidates))
 
 	for _, item := range candidates {

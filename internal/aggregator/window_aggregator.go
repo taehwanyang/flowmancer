@@ -6,21 +6,47 @@ import (
 )
 
 type WindowFlowAggregate struct {
-	Key          WorkloadFlowKey
-	WindowStart  time.Time
-	WindowEnd    time.Time
+	Key         WorkloadFlowKey
+	WindowStart time.Time
+	WindowEnd   time.Time
+
 	Count        uint64
 	SuccessCount uint64
 	FailCount    uint64
+
+	FirstSeen time.Time
+	LastSeen  time.Time
+
+	TotalDuration time.Duration
 }
 
 type ClosedWindow struct {
-	Key          WorkloadFlowKey
-	WindowStart  time.Time
-	WindowEnd    time.Time
+	Key         WorkloadFlowKey
+	WindowStart time.Time
+	WindowEnd   time.Time
+
 	Count        uint64
 	SuccessCount uint64
 	FailCount    uint64
+
+	FirstSeen time.Time
+	LastSeen  time.Time
+
+	TotalDuration time.Duration
+}
+
+func (w ClosedWindow) SuccessRatio() float64 {
+	if w.Count == 0 {
+		return 0
+	}
+	return float64(w.SuccessCount) / float64(w.Count)
+}
+
+func (w ClosedWindow) AvgDuration() time.Duration {
+	if w.Count == 0 {
+		return 0
+	}
+	return time.Duration(int64(w.TotalDuration) / int64(w.Count))
 }
 
 type WorkloadWindowAggregator struct {
@@ -30,6 +56,10 @@ type WorkloadWindowAggregator struct {
 }
 
 func NewWorkloadWindowAggregator(windowSize time.Duration) *WorkloadWindowAggregator {
+	if windowSize <= 0 {
+		windowSize = 5 * time.Minute
+	}
+
 	return &WorkloadWindowAggregator{
 		windowSize: windowSize,
 		flows:      make(map[WorkloadFlowKey]*WindowFlowAggregate),
@@ -42,24 +72,31 @@ func (a *WorkloadWindowAggregator) Add(in ResolvedFlow) {
 		return
 	}
 
-	key := buildWorkloadKey(in)
-	if key.DstPort == 0 || key.Dst == "" {
+	key := BuildWorkloadKey(in)
+	if key.DstPort == 0 {
+		return
+	}
+	if key.Dst == "" {
 		return
 	}
 
 	ts := ev.Time()
-	windowStart := ts.Truncate(a.windowSize)
-	windowEnd := windowStart.Add(a.windowSize)
+	dur := ev.Duration()
+
+	ws := ts.Truncate(a.windowSize)
+	we := ws.Add(a.windowSize)
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	agg, ok := a.flows[key]
-	if !ok || !agg.WindowStart.Equal(windowStart) {
+	if !ok || !agg.WindowStart.Equal(ws) {
 		agg = &WindowFlowAggregate{
 			Key:         key,
-			WindowStart: windowStart,
-			WindowEnd:   windowEnd,
+			WindowStart: ws,
+			WindowEnd:   we,
+			FirstSeen:   ts,
+			LastSeen:    ts,
 		}
 		a.flows[key] = agg
 	}
@@ -70,27 +107,69 @@ func (a *WorkloadWindowAggregator) Add(in ResolvedFlow) {
 	} else {
 		agg.FailCount++
 	}
+
+	if ts.Before(agg.FirstSeen) {
+		agg.FirstSeen = ts
+	}
+	if ts.After(agg.LastSeen) {
+		agg.LastSeen = ts
+	}
+
+	agg.TotalDuration += dur
 }
 
 func (a *WorkloadWindowAggregator) PopExpired(now time.Time) []ClosedWindow {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var out []ClosedWindow
+	out := make([]ClosedWindow, 0)
 
 	for key, agg := range a.flows {
-		if !agg.WindowEnd.After(now) {
-			out = append(out, ClosedWindow{
-				Key:          agg.Key,
-				WindowStart:  agg.WindowStart,
-				WindowEnd:    agg.WindowEnd,
-				Count:        agg.Count,
-				SuccessCount: agg.SuccessCount,
-				FailCount:    agg.FailCount,
-			})
-			delete(a.flows, key)
+		if agg.WindowEnd.After(now) {
+			continue
 		}
+
+		out = append(out, ClosedWindow{
+			Key:           agg.Key,
+			WindowStart:   agg.WindowStart,
+			WindowEnd:     agg.WindowEnd,
+			Count:         agg.Count,
+			SuccessCount:  agg.SuccessCount,
+			FailCount:     agg.FailCount,
+			FirstSeen:     agg.FirstSeen,
+			LastSeen:      agg.LastSeen,
+			TotalDuration: agg.TotalDuration,
+		})
+
+		delete(a.flows, key)
+	}
+
+	sortClosedWindows(out)
+	return out
+}
+
+func (a *WorkloadWindowAggregator) SnapshotOpenWindows() []WindowFlowAggregate {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	out := make([]WindowFlowAggregate, 0, len(a.flows))
+	for _, agg := range a.flows {
+		out = append(out, WindowFlowAggregate{
+			Key:           agg.Key,
+			WindowStart:   agg.WindowStart,
+			WindowEnd:     agg.WindowEnd,
+			Count:         agg.Count,
+			SuccessCount:  agg.SuccessCount,
+			FailCount:     agg.FailCount,
+			FirstSeen:     agg.FirstSeen,
+			LastSeen:      agg.LastSeen,
+			TotalDuration: agg.TotalDuration,
+		})
 	}
 
 	return out
+}
+
+func (a *WorkloadWindowAggregator) WindowSize() time.Duration {
+	return a.windowSize
 }

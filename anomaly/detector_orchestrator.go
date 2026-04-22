@@ -7,29 +7,38 @@ import (
 )
 
 type Detector struct {
-	WorkloadBaselineAggregator *aggregator.WorkloadBaselineAggregator
+	RareConfig   RareDestinationConfig
+	VolumeConfig VolumeAnomalyConfig
 }
 
-func NewDetector(b *aggregator.WorkloadBaselineAggregator) *Detector {
-	return &Detector{WorkloadBaselineAggregator: b}
+func NewDetector() *Detector {
+	return &Detector{
+		RareConfig:   DefaultRareDestinationConfig,
+		VolumeConfig: DefaultVolumeAnomalyConfig,
+	}
 }
 
-func (d *Detector) Evaluate(now time.Time, current aggregator.ClosedWindow) []*Result {
-	historical, ok := d.WorkloadBaselineAggregator.Get(current.Key)
-
-	if !ok {
-		if r := DetectNewDestination(now, current, d.WorkloadBaselineAggregator); r != nil {
-			return []*Result{r}
-		}
+func (d *Detector) Evaluate(
+	now time.Time,
+	snapshot *aggregator.BaselineSnapshot,
+	current aggregator.ClosedWindow,
+) []*Result {
+	if snapshot == nil {
 		return nil
+	}
+
+	historical, ok := snapshot.Get(current.Key)
+	if !ok {
+		return []*Result{DetectNewDestination(now, current)}
 	}
 
 	var out []*Result
 
-	if r := DetectRareDestination(now, current, historical, DefaultRareDestinationConfig); r != nil {
+	if r := DetectRareDestination(now, current, historical, d.RareConfig); r != nil {
 		out = append(out, r)
 	}
-	if r := DetectVolumeAnomaly(now, current, historical, DefaultVolumeAnomalyConfig); r != nil {
+
+	if r := DetectVolumeAnomaly(now, current, historical, d.VolumeConfig); r != nil {
 		out = append(out, r)
 	}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/taehwanyang/flowmancer/internal/aggregator"
 	"github.com/taehwanyang/flowmancer/internal/dns"
@@ -13,19 +14,23 @@ type TCPConnectEventHandler struct {
 	srcResolver *k8smeta.SrcResolver
 	dnsCache    *dns.Cache
 	dstResolver *k8smeta.DstResolver
-	agg         *aggregator.WorkloadBaselineAggregator
+	builder     *aggregator.BaselineBuilder
+	windowAgg   *aggregator.WorkloadWindowAggregator
 }
 
 func NewTCPConnectEventHandler(
 	srcResolver *k8smeta.SrcResolver,
 	dnsCache *dns.Cache,
 	dstResolver *k8smeta.DstResolver,
-	agg *aggregator.WorkloadBaselineAggregator) *TCPConnectEventHandler {
+	builder *aggregator.BaselineBuilder,
+	windowAgg *aggregator.WorkloadWindowAggregator,
+) *TCPConnectEventHandler {
 	return &TCPConnectEventHandler{
 		srcResolver: srcResolver,
 		dnsCache:    dnsCache,
 		dstResolver: dstResolver,
-		agg:         agg,
+		builder:     builder,
+		windowAgg:   windowAgg,
 	}
 }
 
@@ -61,10 +66,30 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 		log.Printf("[Dest IP -> Domain or K8S] hit dstIP=%s dst domain=%s k8s=%s", dstIP, domain, dstK8sName)
 	}
 
-	h.agg.Add(aggregator.ResolvedFlow{
+	resolvedFlow := aggregator.ResolvedFlow{
 		Event:      ev,
 		Pod:        pod,
 		Domain:     domain,
 		DstK8sName: dstK8sName,
-	})
+	}
+
+	h.builder.Add(resolvedFlow)
+	h.windowAgg.Add(resolvedFlow)
+
+	closed := h.windowAgg.PopExpired(ev.Time())
+	for _, cw := range closed {
+		log.Printf(
+			"[closed-window] subject=%s dst=%s:%d family=%d count=%d success=%d fail=%d avg_dur=%s window=%s~%s",
+			aggregator.SubjectStringFromKey(cw.Key),
+			cw.Key.Dst,
+			cw.Key.DstPort,
+			cw.Key.Family,
+			cw.Count,
+			cw.SuccessCount,
+			cw.FailCount,
+			cw.AvgDuration(),
+			cw.WindowStart.Format(time.RFC3339),
+			cw.WindowEnd.Format(time.RFC3339),
+		)
+	}
 }

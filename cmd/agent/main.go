@@ -42,12 +42,13 @@ func main() {
 	}
 
 	dnsCache := dns.NewCache()
-	agg := aggregator.NewWorkloadBaselineAggregator()
+	builder := aggregator.NewBaselineBuilder()
+	windowAgg := aggregator.NewWorkloadWindowAggregator(5 * time.Minute)
 
 	dnsRespHandler := NewDNSRespHandler(dnsCache)
 	dnsCollector := dns.NewDNSRespCollector(dnsRespHandler.Handle)
 
-	tcpConnectEventHandler := NewTCPConnectEventHandler(srcResolver, dnsCache, dstResolver, agg)
+	tcpConnectEventHandler := NewTCPConnectEventHandler(srcResolver, dnsCache, dstResolver, builder, windowAgg)
 	tcpCollector := tcp.NewTCPConnectCollector(
 		tcpConnectEventHandler.Handle,
 		func(err error) {
@@ -84,12 +85,17 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				printSnapshotTopN(agg, 10)
+				printSnapshotTopN(builder, 10)
 			}
 		}
 	}()
 
 	<-ctx.Done()
 
-	printBaselineCandidatesAuto(agg)
+	printBaselineCandidatesAuto(builder)
+	snapshot := builder.ExportSnapshot()
+	log.Printf("baseline snapshot exported: generated_at=%s entries=%d",
+		snapshot.GeneratedAt.Format(time.RFC3339),
+		snapshot.Len(),
+	)
 }

@@ -9,13 +9,7 @@ import (
 func DetectNewDestination(
 	now time.Time,
 	current aggregator.ClosedWindow,
-	baseline *aggregator.WorkloadBaselineAggregator,
 ) *Result {
-	_, ok := baseline.Get(current.Key)
-	if ok {
-		return nil
-	}
-
 	score := 40
 	return &Result{
 		Key:      current.Key,
@@ -25,7 +19,7 @@ func DetectNewDestination(
 			{
 				Code:   "NEW_DESTINATION",
 				Score:  40,
-				Reason: "destination not found in baseline",
+				Reason: "destination not found in baseline snapshot",
 			},
 		},
 		DetectedAt: now,
