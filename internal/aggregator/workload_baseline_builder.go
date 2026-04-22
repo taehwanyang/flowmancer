@@ -114,38 +114,6 @@ func (b *BaselineBuilder) Snapshot() []WorkloadFlowAggregate {
 	return out
 }
 
-func (b *BaselineBuilder) SnapshotTopN(n int) []WorkloadFlowAggregate {
-	all := b.Snapshot()
-	if n <= 0 || n >= len(all) {
-		return all
-	}
-	return all[:n]
-}
-
-func (b *BaselineBuilder) BaselineCandidatesAuto() ([]WorkloadFlowAggregate, uint64) {
-	all := b.Snapshot()
-
-	var total uint64
-	for _, agg := range all {
-		total += agg.Count
-	}
-
-	minCount := autoMinCount(total)
-
-	out := make([]WorkloadFlowAggregate, 0, len(all))
-	for _, agg := range all {
-		if agg.Count < minCount {
-			continue
-		}
-		if agg.SuccessRatio() < 0.8 {
-			continue
-		}
-		out = append(out, agg)
-	}
-
-	return out, minCount
-}
-
 func (b *BaselineBuilder) Len() int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

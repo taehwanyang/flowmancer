@@ -90,6 +90,8 @@ func main() {
 		log.Fatalf("start tcp collector: %v", err)
 	}
 
+	scheduleBaselineDump(ctx, builder, 5*time.Minute)
+
 	defer func() {
 		if err := dnsCollector.Close(); err != nil {
 			log.Printf("close dns collector: %v", err)
