@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/taehwanyang/flowmancer/internal/aggregator"
+	"github.com/taehwanyang/flowmancer/internal/anomaly"
 	"github.com/taehwanyang/flowmancer/internal/dns"
 	"github.com/taehwanyang/flowmancer/internal/k8smeta"
 	"github.com/taehwanyang/flowmancer/internal/netutil"
@@ -42,13 +43,32 @@ func main() {
 	}
 
 	dnsCache := dns.NewCache()
+
 	builder := aggregator.NewBaselineBuilder()
-	windowAgg := aggregator.NewWorkloadWindowAggregator(5 * time.Minute)
+	windowAgg := aggregator.NewWorkloadWindowAggregator(1 * time.Minute)
+	snapshotHolder := aggregator.NewBaselineSnapshotHolder()
+	detectCh := make(chan aggregator.ClosedWindow, 1024)
+	detector := anomaly.NewDetector()
+
+	buildDuration := 5 * time.Minute
+	buildUntil := time.Now().Add(buildDuration)
+
+	log.Printf("[info] baseline build mode enabled for %s", buildDuration)
+	log.Printf("[info] detector will start after warm-up at %s", buildUntil.Format(time.RFC3339))
 
 	dnsRespHandler := NewDNSRespHandler(dnsCache)
 	dnsCollector := dns.NewDNSRespCollector(dnsRespHandler.Handle)
 
-	tcpConnectEventHandler := NewTCPConnectEventHandler(srcResolver, dnsCache, dstResolver, builder, windowAgg)
+	tcpConnectEventHandler := NewTCPConnectEventHandler(
+		srcResolver,
+		dnsCache,
+		dstResolver,
+		builder,
+		windowAgg,
+		detectCh,
+		buildUntil,
+	)
+
 	tcpCollector := tcp.NewTCPConnectCollector(
 		tcpConnectEventHandler.Handle,
 		func(err error) {
@@ -60,6 +80,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("find bridge interface: %v", err)
 	}
+
 	if err := dnsCollector.Start(ctx, iface); err != nil {
 		log.Fatalf("start dns collector: %v", err)
 	}
@@ -74,7 +95,31 @@ func main() {
 		if err := tcpCollector.Close(); err != nil {
 			log.Printf("close tcp collector: %v", err)
 		}
+		close(detectCh)
 	}()
+
+	go func() {
+		timer := time.NewTimer(time.Until(buildUntil))
+		defer timer.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			snapshot := builder.ExportSnapshot()
+			snapshotHolder.Replace(snapshot)
+
+			windowAgg.Reset()
+
+			log.Printf(
+				"[info] detector enabled with baseline snapshot: entries=%d generated_at=%s",
+				snapshot.Len(),
+				snapshot.GeneratedAt.Format(time.RFC3339),
+			)
+		}
+	}()
+
+	go runDetectorWorker(ctx, detectCh, snapshotHolder, detector)
 
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -85,17 +130,16 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				printSnapshotTopN(builder, 10)
+				if time.Now().Before(buildUntil) {
+					printSnapshotTopN(builder, 10)
+				}
 			}
 		}
 	}()
 
 	<-ctx.Done()
 
+	log.Printf("[info] shutting down")
+
 	printBaselineCandidatesAuto(builder)
-	snapshot := builder.ExportSnapshot()
-	log.Printf("baseline snapshot exported: generated_at=%s entries=%d",
-		snapshot.GeneratedAt.Format(time.RFC3339),
-		snapshot.Len(),
-	)
 }

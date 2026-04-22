@@ -14,8 +14,11 @@ type TCPConnectEventHandler struct {
 	srcResolver *k8smeta.SrcResolver
 	dnsCache    *dns.Cache
 	dstResolver *k8smeta.DstResolver
-	builder     *aggregator.BaselineBuilder
-	windowAgg   *aggregator.WorkloadWindowAggregator
+
+	builder    *aggregator.BaselineBuilder
+	windowAgg  *aggregator.WorkloadWindowAggregator
+	detectCh   chan<- aggregator.ClosedWindow
+	buildUntil time.Time
 }
 
 func NewTCPConnectEventHandler(
@@ -24,6 +27,8 @@ func NewTCPConnectEventHandler(
 	dstResolver *k8smeta.DstResolver,
 	builder *aggregator.BaselineBuilder,
 	windowAgg *aggregator.WorkloadWindowAggregator,
+	detectCh chan<- aggregator.ClosedWindow,
+	buildUntil time.Time,
 ) *TCPConnectEventHandler {
 	return &TCPConnectEventHandler{
 		srcResolver: srcResolver,
@@ -31,6 +36,8 @@ func NewTCPConnectEventHandler(
 		dstResolver: dstResolver,
 		builder:     builder,
 		windowAgg:   windowAgg,
+		detectCh:    detectCh,
+		buildUntil:  buildUntil,
 	}
 }
 
@@ -73,23 +80,27 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 		DstK8sName: dstK8sName,
 	}
 
-	h.builder.Add(resolvedFlow)
+	now := ev.Time()
+
+	if now.Before(h.buildUntil) {
+		h.builder.Add(resolvedFlow)
+	}
+
 	h.windowAgg.Add(resolvedFlow)
 
-	closed := h.windowAgg.PopExpired(ev.Time())
+	closed := h.windowAgg.PopExpired(now)
 	for _, cw := range closed {
-		log.Printf(
-			"[closed-window] subject=%s dst=%s:%d family=%d count=%d success=%d fail=%d avg_dur=%s window=%s~%s",
-			aggregator.SubjectStringFromKey(cw.Key),
-			cw.Key.Dst,
-			cw.Key.DstPort,
-			cw.Key.Family,
-			cw.Count,
-			cw.SuccessCount,
-			cw.FailCount,
-			cw.AvgDuration(),
-			cw.WindowStart.Format(time.RFC3339),
-			cw.WindowEnd.Format(time.RFC3339),
-		)
+		select {
+		case h.detectCh <- cw:
+		default:
+			log.Printf(
+				"[warn] detect channel full, dropping closed window subject=%s dst=%s:%d window=%s~%s",
+				aggregator.SubjectStringFromKey(cw.Key),
+				cw.Key.Dst,
+				cw.Key.DstPort,
+				cw.WindowStart.Format(time.RFC3339),
+				cw.WindowEnd.Format(time.RFC3339),
+			)
+		}
 	}
 }

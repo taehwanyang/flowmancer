@@ -173,3 +173,10 @@ func (a *WorkloadWindowAggregator) SnapshotOpenWindows() []WindowFlowAggregate {
 func (a *WorkloadWindowAggregator) WindowSize() time.Duration {
 	return a.windowSize
 }
+
+func (a *WorkloadWindowAggregator) Reset() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.flows = make(map[WorkloadFlowKey]*WindowFlowAggregate)
+}
