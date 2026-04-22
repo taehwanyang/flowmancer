@@ -140,19 +140,3 @@ func (c *TCPConnectCollector) Close() error {
 
 	return first
 }
-
-func LogEvent(ev model.TCPConnectEvent) {
-	log.Printf(
-		"ts=%s dur=%s comm=%s pid=%d tgid=%d netns=%d ret=%d dst=%s:%d family=%d",
-		ev.Time().Format("15:04:05.000"),
-		ev.Duration(),
-		ev.CommString(),
-		ev.Pid,
-		ev.Tgid,
-		ev.NetnsIno,
-		ev.Ret,
-		ev.DstIP(),
-		ev.Dport,
-		ev.Family,
-	)
-}

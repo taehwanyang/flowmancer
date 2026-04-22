@@ -33,7 +33,7 @@ func (b *BaselineBuilder) Add(in ResolvedFlow) {
 		return
 	}
 
-	ts := ev.Time()
+	ts := in.ObservedAt
 	dur := ev.Duration()
 
 	b.mu.Lock()

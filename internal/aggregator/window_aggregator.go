@@ -80,7 +80,7 @@ func (a *WorkloadWindowAggregator) Add(in ResolvedFlow) {
 		return
 	}
 
-	ts := ev.Time()
+	ts := in.ObservedAt
 	dur := ev.Duration()
 
 	ws := ts.Truncate(a.windowSize)

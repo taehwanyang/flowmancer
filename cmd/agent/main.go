@@ -12,6 +12,7 @@ import (
 	"github.com/taehwanyang/flowmancer/internal/anomaly"
 	"github.com/taehwanyang/flowmancer/internal/dns"
 	"github.com/taehwanyang/flowmancer/internal/k8smeta"
+	"github.com/taehwanyang/flowmancer/internal/model"
 	"github.com/taehwanyang/flowmancer/internal/netutil"
 	"github.com/taehwanyang/flowmancer/internal/tcp"
 )
@@ -49,12 +50,13 @@ func main() {
 	snapshotHolder := aggregator.NewBaselineSnapshotHolder()
 	detectCh := make(chan aggregator.ClosedWindow, 1024)
 	detector := anomaly.NewDetector()
+	clockConv, err := model.NewMonotonicClockConverter()
+	if err != nil {
+		log.Fatalf("new monotonic clock converter: %v", err)
+	}
 
 	buildDuration := 5 * time.Minute
 	buildUntil := time.Now().Add(buildDuration)
-
-	log.Printf("[info] baseline build mode enabled for %s", buildDuration)
-	log.Printf("[info] detector will start after warm-up at %s", buildUntil.Format(time.RFC3339))
 
 	dnsRespHandler := NewDNSRespHandler(dnsCache)
 	dnsCollector := dns.NewDNSRespCollector(dnsRespHandler.Handle)
@@ -67,6 +69,7 @@ func main() {
 		windowAgg,
 		detectCh,
 		buildUntil,
+		clockConv,
 	)
 	tcpCollector := tcp.NewTCPConnectCollector(
 		tcpConnectEventHandler.Handle,
@@ -116,5 +119,4 @@ func main() {
 	<-ctx.Done()
 
 	log.Printf("[info] shutting down")
-	printBaselineBuilder(builder)
 }

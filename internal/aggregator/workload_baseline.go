@@ -14,6 +14,7 @@ type ResolvedFlow struct {
 	Pod        *k8smeta.PodMetadata
 	Domain     string
 	DstK8sName string
+	ObservedAt time.Time
 }
 
 type WorkloadFlowKey struct {

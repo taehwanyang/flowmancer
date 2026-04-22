@@ -31,10 +31,6 @@ type TCPConnectEvent struct {
 	DaddrV6 [16]byte
 }
 
-func (e TCPConnectEvent) Time() time.Time {
-	return time.Unix(0, int64(e.TsNS))
-}
-
 func (e TCPConnectEvent) Duration() time.Duration {
 	if e.EndTsNS <= e.TsNS {
 		return 0

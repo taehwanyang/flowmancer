@@ -19,6 +19,8 @@ type TCPConnectEventHandler struct {
 	windowAgg  *aggregator.WorkloadWindowAggregator
 	detectCh   chan<- aggregator.ClosedWindow
 	buildUntil time.Time
+
+	clockConv *model.MonotonicClockConverter
 }
 
 func NewTCPConnectEventHandler(
@@ -29,6 +31,7 @@ func NewTCPConnectEventHandler(
 	windowAgg *aggregator.WorkloadWindowAggregator,
 	detectCh chan<- aggregator.ClosedWindow,
 	buildUntil time.Time,
+	clockConv *model.MonotonicClockConverter,
 ) *TCPConnectEventHandler {
 	return &TCPConnectEventHandler{
 		srcResolver: srcResolver,
@@ -38,6 +41,7 @@ func NewTCPConnectEventHandler(
 		windowAgg:   windowAgg,
 		detectCh:    detectCh,
 		buildUntil:  buildUntil,
+		clockConv:   clockConv,
 	}
 }
 
@@ -78,9 +82,10 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 		Pod:        pod,
 		Domain:     domain,
 		DstK8sName: dstK8sName,
+		ObservedAt: h.clockConv.ToTime(ev.TsNS),
 	}
 
-	now := ev.Time()
+	now := h.clockConv.ToTime(ev.TsNS)
 
 	if now.Before(h.buildUntil) {
 		h.builder.Add(resolvedFlow)
