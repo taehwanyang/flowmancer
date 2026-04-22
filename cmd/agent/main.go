@@ -17,6 +17,11 @@ import (
 	"github.com/taehwanyang/flowmancer/internal/tcp"
 )
 
+const (
+	BuildDuration = 5 * time.Minute
+	WindowSize    = 1 * time.Minute
+)
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -46,7 +51,7 @@ func main() {
 	dnsCache := dns.NewCache()
 
 	builder := aggregator.NewBaselineBuilder()
-	windowAgg := aggregator.NewWorkloadWindowAggregator(1 * time.Minute)
+	windowAgg := aggregator.NewWorkloadWindowAggregator(WindowSize)
 	snapshotHolder := aggregator.NewBaselineSnapshotHolder()
 	detectCh := make(chan aggregator.ClosedWindow, 1024)
 	detector := anomaly.NewDetector()
@@ -55,8 +60,7 @@ func main() {
 		log.Fatalf("new monotonic clock converter: %v", err)
 	}
 
-	buildDuration := 5 * time.Minute
-	buildUntil := time.Now().Add(buildDuration)
+	buildUntil := time.Now().Add(BuildDuration)
 
 	dnsRespHandler := NewDNSRespHandler(dnsCache)
 	dnsCollector := dns.NewDNSRespCollector(dnsRespHandler.Handle)
@@ -90,7 +94,7 @@ func main() {
 		log.Fatalf("start tcp collector: %v", err)
 	}
 
-	scheduleBaselineDump(ctx, builder, 5*time.Minute)
+	scheduleBaselineDump(ctx, builder, BuildDuration)
 
 	defer func() {
 		if err := dnsCollector.Close(); err != nil {
