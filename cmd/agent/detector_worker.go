@@ -28,6 +28,10 @@ func runDetectorWorker(
 				return
 			}
 
+			if !isUserWorkload(cw.Key.Namespace) {
+				continue
+			}
+
 			snapshot := snapshotHolder.Get()
 			if snapshot == nil {
 				continue
@@ -39,6 +43,14 @@ func runDetectorWorker(
 			}
 		}
 	}
+}
+
+func isUserWorkload(ns string) bool {
+	switch ns {
+	case "kube-system", "kube-public", "kube-node-lease":
+		return false
+	}
+	return true
 }
 
 func logAnomalyResult(cw aggregator.ClosedWindow, r *anomaly.Result) {
