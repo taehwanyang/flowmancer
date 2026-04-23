@@ -27,11 +27,6 @@ func main() {
 	defer stop()
 
 	nodeName := os.Getenv("MY_NODE_NAME")
-	if nodeName == "" {
-		log.Println("[warn] MY_NODE_NAME not set, resolving all pods (dev mode)")
-	} else {
-		log.Printf("[info] running on node=%s", nodeName)
-	}
 
 	clientset, err := k8smeta.NewKubernetesClient()
 	if err != nil {
@@ -123,6 +118,4 @@ func main() {
 	go runDetectorWorker(ctx, detectCh, snapshotHolder, detector)
 
 	<-ctx.Done()
-
-	log.Printf("[info] shutting down")
 }

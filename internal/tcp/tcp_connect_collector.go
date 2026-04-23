@@ -46,7 +46,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("attach tcp_v4_connect: %w", err)
 	}
-	log.Println("attached kprobe: tcp_v4_connect")
+	log.Println("[tcp connect collector] attached kprobe: tcp_v4_connect")
 	c.links = append(c.links, kp4)
 
 	kr4, err := link.Kretprobe("tcp_v4_connect", c.objects.HandleTcpV4ConnectRet, nil)
@@ -54,7 +54,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("attach tcp_v4_connect ret: %w", err)
 	}
-	log.Println("attached kretprobe: tcp_v4_connect")
+	log.Println("[tcp connect collector] attached kretprobe: tcp_v4_connect")
 	c.links = append(c.links, kr4)
 
 	kp6, err := link.Kprobe("tcp_v6_connect", c.objects.HandleTcpV6Connect, nil)
@@ -62,7 +62,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("attach tcp_v6_connect: %w", err)
 	}
-	log.Println("attached kprobe: tcp_v6_connect")
+	log.Println("[tcp connect collector] attached kprobe: tcp_v6_connect")
 	c.links = append(c.links, kp6)
 
 	kr6, err := link.Kretprobe("tcp_v6_connect", c.objects.HandleTcpV6ConnectRet, nil)
@@ -70,7 +70,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("attach tcp_v6_connect ret: %w", err)
 	}
-	log.Println("attached kretprobe: tcp_v6_connect")
+	log.Println("[tcp connect collector] attached kretprobe: tcp_v6_connect")
 	c.links = append(c.links, kr6)
 
 	rd, err := ringbuf.NewReader(c.objects.Events)
@@ -78,7 +78,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		c.Close()
 		return fmt.Errorf("open ringbuf: %w", err)
 	}
-	log.Println("opened ringbuf reader")
+
 	c.ring = rd
 
 	go func() {

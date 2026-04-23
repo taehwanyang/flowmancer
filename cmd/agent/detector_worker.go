@@ -15,16 +15,16 @@ func runDetectorWorker(
 	snapshotHolder *aggregator.BaselineSnapshotHolder,
 	detector *anomaly.Detector,
 ) {
-	log.Printf("[Anomaly Detector Worker] Started")
+	log.Printf("[anomaly detector worker] started")
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("[Anomaly Detector Worker] Stopped")
+			log.Printf("[anomaly detector worker] stopped")
 			return
 		case cw, ok := <-detectCh:
 			if !ok {
-				log.Printf("[Anomaly Detector Worker] Channel closed, Worker Closing")
+				log.Printf("[anomaly detector worker] channel closed, worker closing")
 				return
 			}
 
