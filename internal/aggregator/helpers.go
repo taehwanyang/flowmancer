@@ -40,17 +40,6 @@ func ipString(ip net.IP) string {
 	return ip.String()
 }
 
-func autoMinCount(total uint64) uint64 {
-	switch {
-	case total >= 100:
-		return 5
-	case total >= 30:
-		return 3
-	default:
-		return 2
-	}
-}
-
 func sortClosedWindows(out []ClosedWindow) {
 	sort.Slice(out, func(i, j int) bool {
 		a := out[i]
