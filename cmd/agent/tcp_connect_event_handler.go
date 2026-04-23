@@ -50,12 +50,6 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 
 	if resolved, ok := h.srcResolver.ResolveNetns(ev.NetnsIno); ok {
 		pod = &resolved
-		// log.Printf(
-		// 	"[Network Namespace -> Pod Resolved] netns=%d -> pod=%s/%s",
-		// 	ev.NetnsIno,
-		// 	resolved.Namespace,
-		// 	resolved.PodName,
-		// )
 	}
 
 	dstIP := ev.DstIP()
@@ -73,10 +67,6 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 		dstK8sName = resolvedDst.Name
 	}
 
-	// if domain != "" || dstK8sName != "" {
-	// 	log.Printf("[Dest IP -> Domain or K8S] hit dstIP=%s dst domain=%s k8s=%s", dstIP, domain, dstK8sName)
-	// }
-
 	resolvedFlow := aggregator.ResolvedFlow{
 		Event:      ev,
 		Pod:        pod,
@@ -92,15 +82,15 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 	closed := h.windowAgg.PopExpired(now)
 
 	if now.Before(h.buildUntil) {
-		h.builder.Add(resolvedFlow)
-
-		for _, cw := range closed {
-			h.builder.AppendWindowSample(cw.Key, cw.Count, 288)
-		}
+		h.handleBaselineLearning(resolvedFlow, closed)
 		return
 	}
 
 	for _, cw := range closed {
+		if !cw.Key.IsResolvedSourceKey() {
+			continue
+		}
+
 		select {
 		case h.detectCh <- cw:
 		default:
@@ -113,5 +103,21 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 				cw.WindowEnd.Format(time.RFC3339),
 			)
 		}
+	}
+}
+
+func (h *TCPConnectEventHandler) handleBaselineLearning(
+	resolvedFlow aggregator.ResolvedFlow,
+	closed []aggregator.ClosedWindow,
+) {
+	if resolvedFlow.Pod != nil {
+		h.builder.Add(resolvedFlow)
+	}
+
+	for _, cw := range closed {
+		if !cw.Key.IsResolvedSourceKey() {
+			continue
+		}
+		h.builder.AppendWindowSample(cw.Key, cw.Count, 288)
 	}
 }

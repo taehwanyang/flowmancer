@@ -46,6 +46,10 @@ type WorkloadFlowAggregate struct {
 	WindowCounts []uint64
 }
 
+func (k *WorkloadFlowKey) IsResolvedSourceKey() bool {
+	return k.Namespace != "" && k.WorkloadKind != "" && k.WorkloadName != ""
+}
+
 func (f WorkloadFlowAggregate) SuccessRatio() float64 {
 	if f.Count == 0 {
 		return 0
@@ -69,35 +73,6 @@ func (f WorkloadFlowAggregate) SubjectString() string {
 
 func (f WorkloadFlowAggregate) DestinationString() string {
 	return f.Key.Dst
-}
-
-func buildWorkloadKey(in ResolvedFlow) WorkloadFlowKey {
-	ev := in.Event
-
-	key := WorkloadFlowKey{
-		Family:  ev.Family,
-		DstPort: ev.Dport,
-	}
-
-	switch {
-	case in.Domain != "":
-		key.Dst = normalizeDomain(in.Domain)
-	case in.DstK8sName != "":
-		key.Dst = in.DstK8sName
-	default:
-		key.Dst = ipString(ev.DstIP())
-	}
-
-	if in.Pod != nil {
-		key.Namespace = in.Pod.Namespace
-		key.WorkloadKind = in.Pod.WorkloadKind
-		key.WorkloadName = in.Pod.WorkloadName
-	} else {
-		key.NetnsIno = ev.NetnsIno
-		key.Comm = ev.CommString()
-	}
-
-	return key
 }
 
 func normalizeDomain(d string) string {

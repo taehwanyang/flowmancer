@@ -33,8 +33,6 @@ func runDetectorWorker(
 				continue
 			}
 
-			// log.Printf("[Anomaly Detector Worker] Received ClosedWindow and Snapshot, Evaluate Will Start")
-
 			results := detector.Evaluate(cw.WindowEnd, snapshot, cw)
 			for _, r := range results {
 				logAnomalyResult(cw, r)
