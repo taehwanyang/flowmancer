@@ -20,7 +20,8 @@ type TCPConnectEventHandler struct {
 	detectCh   chan<- aggregator.ClosedWindow
 	buildUntil time.Time
 
-	clockConv *model.MonotonicClockConverter
+	clockConv        *model.MonotonicClockConverter
+	maxWindowSamples int
 }
 
 func NewTCPConnectEventHandler(
@@ -32,16 +33,18 @@ func NewTCPConnectEventHandler(
 	detectCh chan<- aggregator.ClosedWindow,
 	buildUntil time.Time,
 	clockConv *model.MonotonicClockConverter,
+	maxWindowSamples int,
 ) *TCPConnectEventHandler {
 	return &TCPConnectEventHandler{
-		srcResolver: srcResolver,
-		dnsCache:    dnsCache,
-		dstResolver: dstResolver,
-		builder:     builder,
-		windowAgg:   windowAgg,
-		detectCh:    detectCh,
-		buildUntil:  buildUntil,
-		clockConv:   clockConv,
+		srcResolver:      srcResolver,
+		dnsCache:         dnsCache,
+		dstResolver:      dstResolver,
+		builder:          builder,
+		windowAgg:        windowAgg,
+		detectCh:         detectCh,
+		buildUntil:       buildUntil,
+		clockConv:        clockConv,
+		maxWindowSamples: maxWindowSamples,
 	}
 }
 
@@ -128,6 +131,6 @@ func (h *TCPConnectEventHandler) handleBaselineLearning(
 		if !cw.Key.IsResolvedSourceKey() {
 			continue
 		}
-		h.builder.AppendWindowSample(cw.Key, cw.Count, 288)
+		h.builder.AppendWindowSample(cw.Key, cw.Count, h.maxWindowSamples)
 	}
 }

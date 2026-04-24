@@ -6,123 +6,41 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/taehwanyang/flowmancer/internal/aggregator"
-	"github.com/taehwanyang/flowmancer/internal/anomaly"
-	"github.com/taehwanyang/flowmancer/internal/dns"
-	"github.com/taehwanyang/flowmancer/internal/k8smeta"
-	"github.com/taehwanyang/flowmancer/internal/model"
-	"github.com/taehwanyang/flowmancer/internal/netutil"
-	"github.com/taehwanyang/flowmancer/internal/tcp"
-)
-
-const (
-	BuildDuration = 5 * time.Minute
-	WindowSize    = 1 * time.Minute
+	"github.com/taehwanyang/flowmancer/config"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	procRoot := os.Getenv("HOST_PROC")
-	log.Printf("[config] HOST_PROC=%s", procRoot)
-	if procRoot == "" {
-		procRoot = "/proc"
-	}
-	k8smeta.SetProcRoot(procRoot)
+	configPath := resolveConfigPath()
 
-	nodeName := os.Getenv("MY_NODE_NAME")
-
-	clientset, err := k8smeta.NewKubernetesClient()
+	cfg, err := config.Load(configPath)
 	if err != nil {
-		log.Fatalf("new kubernetes client: %v", err)
+		log.Fatalf("load config: %v", err)
 	}
 
-	srcResolver := k8smeta.NewSrcResolver(clientset, nodeName)
-	dstResolver := k8smeta.NewDstResolver(clientset)
+	log.Printf("[config] using config file: %s", configPath)
 
-	if err := srcResolver.Start(ctx); err != nil {
-		log.Fatalf("start src resolver: %v", err)
-	}
-	if err := dstResolver.Start(ctx); err != nil {
-		log.Fatalf("start dst resolver: %v", err)
-	}
-
-	dnsCache := dns.NewCache()
-
-	builder := aggregator.NewBaselineBuilder()
-	windowAgg := aggregator.NewWorkloadWindowAggregator(WindowSize)
-	snapshotHolder := aggregator.NewBaselineSnapshotHolder()
-	detectCh := make(chan aggregator.ClosedWindow, 1024)
-	detector := anomaly.NewDetector()
-	clockConv, err := model.NewMonotonicClockConverter()
+	app, err := NewApp(cfg)
 	if err != nil {
-		log.Fatalf("new monotonic clock converter: %v", err)
+		log.Fatalf("new app: %v", err)
 	}
 
-	buildUntil := time.Now().Add(BuildDuration)
+	if err := app.Run(ctx); err != nil {
+		log.Fatalf("run app: %v", err)
+	}
+}
 
-	dnsRespHandler := NewDNSRespHandler(dnsCache)
-	dnsCollector := dns.NewDNSRespCollector(dnsRespHandler.Handle)
-
-	tcpConnectEventHandler := NewTCPConnectEventHandler(
-		srcResolver,
-		dnsCache,
-		dstResolver,
-		builder,
-		windowAgg,
-		detectCh,
-		buildUntil,
-		clockConv,
-	)
-	tcpCollector := tcp.NewTCPConnectCollector(
-		tcpConnectEventHandler.Handle,
-		func(err error) {
-			log.Printf("tcp connect collector error: %v", err)
-		},
-	)
-
-	iface, err := netutil.DetectBridgeInterface()
-	if err != nil {
-		log.Fatalf("find bridge interface: %v", err)
+func resolveConfigPath() string {
+	if path := os.Getenv("FLOWMANCER_CONFIG"); path != "" {
+		return path
 	}
 
-	if err := dnsCollector.Start(ctx, iface); err != nil {
-		log.Fatalf("start dns collector: %v", err)
-	}
-	if err := tcpCollector.Start(ctx); err != nil {
-		log.Fatalf("start tcp collector: %v", err)
+	if _, err := os.Stat("./flowmancer-agent-config.yaml"); err == nil {
+		return "./flowmancer-agent-config.yaml"
 	}
 
-	scheduleBaselineDump(ctx, builder, BuildDuration)
-
-	defer func() {
-		if err := dnsCollector.Close(); err != nil {
-			log.Printf("close dns collector: %v", err)
-		}
-		if err := tcpCollector.Close(); err != nil {
-			log.Printf("close tcp collector: %v", err)
-		}
-		close(detectCh)
-	}()
-
-	go func() {
-		timer := time.NewTimer(time.Until(buildUntil))
-		defer timer.Stop()
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			snapshot := builder.ExportSnapshot()
-			snapshotHolder.Replace(snapshot)
-			windowAgg.Reset()
-		}
-	}()
-
-	go runDetectorWorker(ctx, detectCh, snapshotHolder, detector)
-
-	<-ctx.Done()
+	return "/etc/flowmancer/flowmancer-agent-config.yaml"
 }
