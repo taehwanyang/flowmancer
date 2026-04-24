@@ -123,7 +123,7 @@ func (h *TCPConnectEventHandler) handleBaselineLearning(
 	resolvedFlow aggregator.ResolvedFlow,
 	closed []aggregator.ClosedWindow,
 ) {
-	if resolvedFlow.Pod != nil {
+	if resolvedFlow.Pod != nil && isDetectableNamespace(resolvedFlow.Pod.Namespace) {
 		h.builder.Add(resolvedFlow)
 	}
 

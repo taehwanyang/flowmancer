@@ -28,7 +28,7 @@ func runDetectorWorker(
 				return
 			}
 
-			if !isUserWorkload(cw.Key.Namespace) {
+			if !isDetectableNamespace(cw.Key.Namespace) {
 				continue
 			}
 
@@ -43,14 +43,6 @@ func runDetectorWorker(
 			}
 		}
 	}
-}
-
-func isUserWorkload(ns string) bool {
-	switch ns {
-	case "kube-system", "kube-public", "kube-node-lease", "flowmancer-system":
-		return false
-	}
-	return true
 }
 
 func logAnomalyResult(cw aggregator.ClosedWindow, r *anomaly.Result) {
