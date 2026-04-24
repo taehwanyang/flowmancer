@@ -83,6 +83,8 @@ spec:
                   fieldPath: spec.nodeName
             - name: HOST_PROC
               value: /host/proc
+            - name: FLOWMANCER_CONFIG
+              value: /etc/flowmancer/flowmancer-agent-config.yaml
 
           volumeMounts:
             - name: bpffs
@@ -97,6 +99,9 @@ spec:
 
             - name: host-proc
               mountPath: /host/proc
+              readOnly: true
+            - name: flowmancer-config
+              mountPath: /etc/flowmancer
               readOnly: true
 
       volumes:
@@ -119,3 +124,6 @@ spec:
           hostPath:
             path: /proc
             type: Directory
+        - name: flowmancer-config
+          configMap:
+            name: flowmancer-config

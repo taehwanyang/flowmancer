@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flowmancer-config
+  namespace: flowmancer-system
+data:
+  flowmancer-agent-config.yaml: |
+    server:
+      buildDuration: 5m
+      windowSize: 1m
+      maxWindowSamples: 288
+
+    detector:
+      enabled: true
+      newDestination:
+        enabled: true
+      rareDestination:
+        enabled: true
+        maxDaysSeen: 2
+        maxTotalCount: 20
+        minCurrentWinCount: 10
+        minSpikeMultiplier: 3.0
+      volumeAnomaly:
+        enabled: true
+        minSampleWindows: 10
+        minCurrentCount: 20
+        avgMultiplier: 3.0
+        p95Multiplier: 1.5
