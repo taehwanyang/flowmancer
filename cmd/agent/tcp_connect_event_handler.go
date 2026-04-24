@@ -90,9 +90,9 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 
 	now := h.clockConv.ToTime(ev.TsNS)
 
-	h.windowAgg.Add(resolvedFlow)
-
 	closed := h.windowAgg.PopExpired(now)
+
+	h.windowAgg.Add(resolvedFlow)
 
 	if now.Before(h.buildUntil) {
 		h.handleBaselineLearning(resolvedFlow, closed)
