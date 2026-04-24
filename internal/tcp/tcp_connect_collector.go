@@ -15,7 +15,7 @@ import (
 )
 
 type TCPConnectCollector struct {
-	objects   ebpfgen.FlowObjects
+	objects   ebpfgen.TCPConnectObjects
 	links     []link.Link
 	ring      *ringbuf.Reader
 	onEvent   func(model.TCPConnectEvent)
@@ -37,7 +37,7 @@ func (c *TCPConnectCollector) Start(ctx context.Context) error {
 		return fmt.Errorf("remove memlock: %w", err)
 	}
 
-	if err := ebpfgen.LoadFlowObjects(&c.objects, nil); err != nil {
+	if err := ebpfgen.LoadTCPConnectObjects(&c.objects, nil); err != nil {
 		return fmt.Errorf("load flow objects: %w", err)
 	}
 

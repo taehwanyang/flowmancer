@@ -26,6 +26,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	procRoot := os.Getenv("HOST_PROC")
+	log.Printf("[config] HOST_PROC=%s", procRoot)
+	if procRoot == "" {
+		procRoot = "/proc"
+	}
+	k8smeta.SetProcRoot(procRoot)
+
 	nodeName := os.Getenv("MY_NODE_NAME")
 
 	clientset, err := k8smeta.NewKubernetesClient()

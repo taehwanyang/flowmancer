@@ -1,11 +1,11 @@
-internal/ebpfgen/flow_bpfel.go
-internal/ebpfgen/flow_bpfeb.go
-internal/ebpfgen/flow_bpfel.o
-internal/ebpfgen/flow_bpfeb.o
+internal/ebpfgen/tcpconnect_bpfel.go
+internal/ebpfgen/tcpconnect_bpfeb.go
+internal/ebpfgen/tcpconnect_bpfel.o
+internal/ebpfgen/tcpconnect_bpfeb.o
 
-internal/ebpfgen/dns_bpfeb.go
-internal/ebpfgen/dns_bpfel.go
-internal/ebpfgen/dns_bpfeb.o
-internal/ebpfgen/dns_bpfel.o
+internal/ebpfgen/dnsresponse_bpfeb.go
+internal/ebpfgen/dnsresponse_bpfel.go
+internal/ebpfgen/dnsresponse_bpfeb.o
+internal/ebpfgen/dnsresponse_bpfel.o
 
 flowmancer-agent

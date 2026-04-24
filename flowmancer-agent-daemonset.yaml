@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flowmancer-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flowmancer-agent
+  namespace: flowmancer-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: flowmancer-agent
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - endpoints
+      - nodes
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: ["discovery.k8s.io"]
+    resources:
+      - endpointslices
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: ["apps"]
+    resources:
+      - replicasets
+      - deployments
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: flowmancer-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: flowmancer-agent
+subjects:
+  - kind: ServiceAccount
+    name: flowmancer-agent
+    namespace: flowmancer-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: flowmancer-agent
+  namespace: flowmancer-system
+spec:
+  selector:
+    matchLabels:
+      app: flowmancer-agent
+  template:
+    metadata:
+      labels:
+        app: flowmancer-agent
+    spec:
+      serviceAccountName: flowmancer-agent
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - operator: Exists
+
+      containers:
+        - name: flowmancer-agent
+          image: ythwork/flowmancer-agent:0.1.0
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            privileged: true
+
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: HOST_PROC
+              value: /host/proc
+
+          volumeMounts:
+            - name: bpffs
+              mountPath: /sys/fs/bpf
+
+            - name: debugfs
+              mountPath: /sys/kernel/debug
+
+            - name: lib-modules
+              mountPath: /lib/modules
+              readOnly: true
+
+            - name: host-proc
+              mountPath: /host/proc
+              readOnly: true
+
+      volumes:
+        - name: bpffs
+          hostPath:
+            path: /sys/fs/bpf
+            type: DirectoryOrCreate
+
+        - name: debugfs
+          hostPath:
+            path: /sys/kernel/debug
+            type: DirectoryOrCreate
+
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+            type: Directory
+
+        - name: host-proc
+          hostPath:
+            path: /proc
+            type: Directory

@@ -15,14 +15,22 @@ var (
 	podUIDRe = regexp.MustCompile(`pod([0-9a-fA-F_\\-]{8,})`)
 )
 
+var procRoot = "/proc"
+
 type ProcInfo struct {
 	PID      int
 	NetnsIno uint32
 	PodUID   string
 }
 
+func SetProcRoot(root string) {
+	if root != "" {
+		procRoot = root
+	}
+}
+
 func ScanProcForPodNetns() ([]ProcInfo, error) {
-	entries, err := os.ReadDir("/proc")
+	entries, err := os.ReadDir(procRoot)
 	if err != nil {
 		return nil, fmt.Errorf("read /proc: %w", err)
 	}
@@ -60,7 +68,7 @@ func ScanProcForPodNetns() ([]ProcInfo, error) {
 }
 
 func readNetnsIno(pid int) (uint32, error) {
-	target, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(pid), "ns/net"))
+	target, err := os.Readlink(filepath.Join(procRoot, strconv.Itoa(pid), "ns/net"))
 	if err != nil {
 		return 0, err
 	}

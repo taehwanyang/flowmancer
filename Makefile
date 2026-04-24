@@ -4,14 +4,14 @@ BPF_GEN_PACKAGE := ./internal/ebpfgen
 
 # bpf2go generated files
 GENERATED_FILES := \
-	$(BPF_GEN_PACKAGE)/flow_bpfel.go \
-	$(BPF_GEN_PACKAGE)/flow_bpfeb.go \
-	$(BPF_GEN_PACKAGE)/flow_bpfel.o \
-	$(BPF_GEN_PACKAGE)/flow_bpfeb.o \
-	$(BPF_GEN_PACKAGE)/dns_bpfel.go \
-	$(BPF_GEN_PACKAGE)/dns_bpfeb.go \
-	$(BPF_GEN_PACKAGE)/dns_bpfel.o \
-	$(BPF_GEN_PACKAGE)/dns_bpfeb.o
+	$(BPF_GEN_PACKAGE)/tcpconnect_bpfel.go \
+	$(BPF_GEN_PACKAGE)/tcpconnect_bpfeb.go \
+	$(BPF_GEN_PACKAGE)/tcpconnect_bpfel.o \
+	$(BPF_GEN_PACKAGE)/tcpconnect_bpfeb.o \
+	$(BPF_GEN_PACKAGE)/dnsresponse_bpfel.go \
+	$(BPF_GEN_PACKAGE)/dnsresponse_bpfeb.go \
+	$(BPF_GEN_PACKAGE)/dnsresponse_bpfel.o \
+	$(BPF_GEN_PACKAGE)/dnsresponse_bpfeb.o
 
 .PHONY: all generate build run clean help
 

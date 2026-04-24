@@ -29,7 +29,7 @@ type DNSRespEvent struct {
 }
 
 type DNSRespCollector struct {
-	objects ebpfgen.DNSObjects
+	objects ebpfgen.DNSResponseObjects
 	ring    *ringbuf.Reader
 	link    link.Link
 	onResp  func(*ParsedResponse)
@@ -51,7 +51,7 @@ func (c *DNSRespCollector) StartOnInterface(ctx context.Context, iface *net.Inte
 		return fmt.Errorf("remove memlock: %w", err)
 	}
 
-	if err := ebpfgen.LoadDNSObjects(&c.objects, nil); err != nil {
+	if err := ebpfgen.LoadDNSResponseObjects(&c.objects, nil); err != nil {
 		return fmt.Errorf("load dns objects: %w", err)
 	}
 

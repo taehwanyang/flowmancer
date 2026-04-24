@@ -50,6 +50,16 @@ func (h *TCPConnectEventHandler) Handle(ev model.TCPConnectEvent) {
 
 	if resolved, ok := h.srcResolver.ResolveNetns(ev.NetnsIno); ok {
 		pod = &resolved
+
+		// log.Printf(
+		// 	"[resolve hit] netns=%d -> %s/%s/%s pod=%s node=%s",
+		// 	ev.NetnsIno,
+		// 	resolved.Namespace,
+		// 	resolved.WorkloadKind,
+		// 	resolved.WorkloadName,
+		// 	resolved.PodName,
+		// 	resolved.NodeName,
+		// )
 	}
 
 	dstIP := ev.DstIP()
